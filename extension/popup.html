@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { font-family: system-ui, sans-serif; width: 340px; margin: 0; padding: 0.75rem; background: #101418; color: #e6edf3; }
+      h1 { font-size: 0.95rem; margin: 0 0 0.5rem; }
+      button { width: 100%; padding: 0.5rem; background: #4c9aff; color: #0b1524; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+      button:disabled { opacity: 0.5; }
+      #msg { font-size: 0.8rem; margin: 0.5rem 0; min-height: 1em; }
+      #msg.err { color: #f85149; }
+      #msg.ok { color: #3fb950; }
+      ul { list-style: none; padding: 0; margin: 0.5rem 0 0; font-size: 0.78rem; }
+      li { padding: 0.3rem 0; border-top: 1px solid #29323c; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .state { display: inline-block; min-width: 3.5rem; color: #8b98a5; text-transform: uppercase; font-size: 0.68rem; }
+      .state.done { color: #3fb950; }
+      .state.error { color: #f85149; }
+      .state.active { color: #4c9aff; }
+      a { color: #8b98a5; font-size: 0.75rem; }
+    </style>
+  </head>
+  <body>
+    <h1>Grabbit</h1>
+    <button id="send">Queue current page</button>
+    <div id="msg"></div>
+    <ul id="recent"></ul>
+    <a href="#" id="options">Options</a>
+    <script src="popup.js"></script>
+  </body>
+</html>

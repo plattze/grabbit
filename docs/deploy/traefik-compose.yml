@@ -1,0 +1,31 @@
+# Grabbit with Traefik labels (Docker provider). Traefik proxies WebSockets
+# transparently — no extra config needed for /api/ws.
+#
+# Sub-path mount; pair with Grabbit config root_path: "/grabbit".
+
+services:
+  grabbit:
+    image: ghcr.io/plattze/grabbit:latest
+    restart: unless-stopped
+    volumes:
+      - ./config:/config
+      - ./downloads:/downloads
+    environment:
+      - GRABBIT_ROOT_PATH=/grabbit
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.grabbit.rule=PathPrefix(`/grabbit`)
+      - traefik.http.routers.grabbit.entrypoints=websecure
+      - traefik.http.routers.grabbit.tls=true
+      - traefik.http.middlewares.grabbit-strip.stripprefix.prefixes=/grabbit
+      - traefik.http.routers.grabbit.middlewares=grabbit-strip
+      - traefik.http.services.grabbit.loadbalancer.server.port=8080
+      # Internal-only variant: allow only LAN clients
+      # - traefik.http.middlewares.grabbit-lan.ipallowlist.sourcerange=192.168.0.0/16,10.0.0.0/8
+      # - traefik.http.routers.grabbit.middlewares=grabbit-strip,grabbit-lan
+    networks:
+      - traefik
+
+networks:
+  traefik:
+    external: true

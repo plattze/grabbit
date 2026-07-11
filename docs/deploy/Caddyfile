@@ -1,0 +1,21 @@
+# Grabbit behind Caddy — Caddy handles TLS and WebSockets automatically.
+#
+# Sub-path mount; pair with Grabbit config root_path: "/grabbit".
+
+example.home {
+	handle_path /grabbit/* {
+		reverse_proxy 127.0.0.1:8080
+	}
+}
+
+# --- Root-domain variant ------------------------------------------------------
+# grabbit.example.home {
+# 	reverse_proxy 127.0.0.1:8080
+# }
+
+# --- Internal-only variant ---------------------------------------------------
+# grabbit.example.home {
+# 	@external not remote_ip 192.168.0.0/16 10.0.0.0/8
+# 	abort @external
+# 	reverse_proxy 127.0.0.1:8080
+# }
