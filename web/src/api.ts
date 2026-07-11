@@ -46,6 +46,12 @@ export interface ApiKeyCreated extends ApiKeyInfo {
   token: string;
 }
 
+export interface Settings {
+  version: string;
+  read_only: Record<string, Record<string, unknown> | string>;
+  editable: Record<string, unknown>;
+}
+
 const TOKEN_KEY = "grabbit_token";
 
 export const getToken = (): string => localStorage.getItem(TOKEN_KEY) ?? "";
@@ -97,6 +103,7 @@ export const api = {
   retry: (id: number) => request<Job>(`downloads/${id}/retry`, { method: "POST" }),
   remove: (id: number) => request<void>(`downloads/${id}`, { method: "DELETE" }),
   stats: () => request<Stats>("stats"),
+  settings: () => request<Settings>("settings"),
   listKeys: () => request<ApiKeyInfo[]>("keys"),
   createKey: (name: string, scope: "submit" | "admin") =>
     request<ApiKeyCreated>("keys", { method: "POST", body: JSON.stringify({ name, scope }) }),

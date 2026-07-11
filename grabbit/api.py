@@ -188,6 +188,54 @@ async def health() -> dict:
     return {"status": "ok", "version": __version__}
 
 
+@router.get("/settings")
+async def settings(request: Request, key: ApiKeyInfo = Depends(require_admin)) -> dict:
+    """Current server configuration for the UI settings page.
+
+    Everything here comes from config.yaml / GRABBIT_* env / the Docker
+    deployment at startup, so it is all read-only from the web UI; the shape
+    leaves room for editable sections later.
+    """
+    cfg = _state(request).cfg
+    return {
+        "version": __version__,
+        # All values below are set at deploy time and not editable at runtime.
+        "read_only": {
+            "server": {
+                "port": cfg.server.port,
+                "root_path": cfg.server.root_path or None,
+                "public_url": cfg.server.public_url,
+                "trusted_proxies": cfg.server.trusted_proxies,
+            },
+            "downloads": {
+                "dest": str(cfg.downloads.dest),
+                "incomplete_dir":
+                    str(cfg.downloads.incomplete_dir) if cfg.downloads.incomplete_dir else None,
+                "max_concurrent": cfg.downloads.max_concurrent,
+                "max_per_host": cfg.downloads.max_per_host,
+                "filename_template": cfg.downloads.filename_template,
+                "cookies_file":
+                    str(cfg.downloads.cookies_file) if cfg.downloads.cookies_file else None,
+            },
+            "engine": {
+                "name": cfg.engine.name,
+                "channel": cfg.engine.channel,
+                "retries": cfg.engine.retries,
+                "rate_limit": cfg.engine.rate_limit,
+            },
+            "logging": {
+                "enabled": cfg.logging.enabled,
+                "level": cfg.logging.level,
+                "format": cfg.logging.format,
+            },
+            "metrics": {"enabled": cfg.metrics.enabled},
+            "mcp": {"enabled": cfg.mcp.enabled},
+            "data_dir": str(cfg.data_dir),
+        },
+        "editable": {},  # standing home for future runtime-editable settings
+    }
+
+
 def _extension_dir() -> Path | None:
     """Bundled extension source: package data (Docker) or repo checkout (dev)."""
     for candidate in (Path(__file__).parent / "extension",

@@ -11,6 +11,7 @@ import {
   SubmitResult,
 } from "./api";
 import { KeysPanel } from "./KeysPanel";
+import { SettingsPanel } from "./SettingsPanel";
 
 const FILTERS: (JobState | "all")[] = ["all", "active", "queued", "paused", "error", "done"];
 
@@ -213,7 +214,7 @@ export default function App() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
-  const [view, setView] = useState<"queue" | "keys">("queue");
+  const [view, setView] = useState<"queue" | "keys" | "settings">("queue");
   const [wsDown, setWsDown] = useState(false);
   const refreshTimer = useRef<number | null>(null);
 
@@ -298,12 +299,20 @@ export default function App() {
           >
             API keys
           </button>
+          <button
+            className={`linkish ${view === "settings" ? "active" : ""}`}
+            onClick={() => setView("settings")}
+          >
+            Settings
+          </button>
         </nav>
       </header>
 
       {wsDown && <div className="offline">Live updates disconnected — retrying…</div>}
 
-      {view === "keys" ? (
+      {view === "settings" ? (
+        <SettingsPanel />
+      ) : view === "keys" ? (
         <KeysPanel />
       ) : (
         <>

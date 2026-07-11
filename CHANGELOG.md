@@ -15,6 +15,10 @@ All notable changes to Grabbit are documented here. The format follows
 - JDownloader queue importer (`grabbit-import-jd`): parses `downloadList*.zip`,
   maps packages to dest sub-folders, and submits through the normal REST
   validation path (per-URL rejection reasons, rate-limit aware, `--dry-run`).
+- Settings page in the web UI (admin scope) backed by `GET /api/settings`:
+  shows the running configuration (server, downloads, engine, logging,
+  metrics, MCP) as read-only — values come from config.yaml / env / Docker.
+  The response shape reserves an `editable` section for future settings.
 - "Install Chrome plugin" on the web UI home page: downloads the extension
   zipped from `/api/extension.zip` (admin scope), preconfigured with the
   server URL and a freshly minted submit-scoped API key baked into

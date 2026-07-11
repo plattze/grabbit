@@ -167,3 +167,6 @@ table.keys th { color: var(--muted); font-weight: 500; }
 
 .install-ext { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
 .install-ext .hint { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 0.85rem; }
+
+.settings-section h3 { margin: 1rem 0 0.25rem; font-size: 0.95rem; }
+.settings-section .setting-name { color: var(--muted); width: 40%; }
