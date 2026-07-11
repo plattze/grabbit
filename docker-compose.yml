@@ -1,0 +1,16 @@
+services:
+  grabbit:
+    image: ghcr.io/plattze/grabbit:latest
+    build: .
+    container_name: grabbit
+    restart: unless-stopped
+    # Publish to localhost only: the reverse proxy is the public face.
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./config:/config
+      - ./downloads:/downloads
+      # - /etc/localtime:/etc/localtime:ro
+    environment:
+      - TZ=Etc/UTC
+      # - GRABBIT_ENGINE_CHANNEL=dev   # runtime hint; dev engine needs the dev-built image

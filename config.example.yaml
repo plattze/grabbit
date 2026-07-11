@@ -1,0 +1,37 @@
+# Grabbit configuration — copy to config/config.yaml and adjust.
+# Every value shown is the default; delete anything you don't change.
+
+server:
+  bind: 0.0.0.0          # inside the container; publish via proxy/compose, not directly
+  port: 8080
+  root_path: ""          # set when mounted under a proxy sub-path, e.g. "/grabbit"
+  trusted_proxies: ["127.0.0.1"]
+
+downloads:
+  dest: /downloads
+  max_concurrent: 5
+  max_per_host: 2
+  filename_template: null   # gallery-dl filename template, e.g. "{category}_{filename}.{extension}"
+  cookies_file: null        # e.g. /config/cookies.txt (mount read-only)
+
+engine:
+  name: gallery-dl
+  channel: stable        # stable (tagged PyPI release) | dev (upstream master snapshot)
+  retries: 3
+  rate_limit: null       # e.g. "2M" bytes/s; null = unlimited
+
+logging:
+  enabled: true          # false = no log files at all
+  level: info            # debug | info | warn | error
+  format: json           # json | text
+  rotation:
+    max_size_mb: 50
+    max_files: 5
+    compress: true
+
+security:
+  require_auth: true
+  update_check: false    # never phone home
+
+metrics:
+  enabled: true          # GET /metrics (Prometheus)
