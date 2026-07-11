@@ -12,6 +12,9 @@ All notable changes to Grabbit are documented here. The format follows
   the REST API using submit-scoped key auth. Ships in the Docker image and as
   the `mcp` extra (`pip install "grabbit[mcp]"`). Disable with
   `mcp.enabled: false` or `GRABBIT_MCP_ENABLED=false`.
+- JDownloader queue importer (`grabbit-import-jd`): parses `downloadList*.zip`,
+  maps packages to dest sub-folders, and submits through the normal REST
+  validation path (per-URL rejection reasons, rate-limit aware, `--dry-run`).
 
 ## [0.1.0] - 2026-07-11
 

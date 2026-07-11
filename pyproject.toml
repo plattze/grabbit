@@ -32,6 +32,7 @@ dev = [
 [project.scripts]
 grabbit = "grabbit.__main__:main"
 grabbit-mcp = "grabbit.mcp_server:main"
+grabbit-import-jd = "grabbit.jd_import:main"
 
 [build-system]
 requires = ["setuptools>=68"]

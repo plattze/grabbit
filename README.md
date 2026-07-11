@@ -24,6 +24,8 @@ container: queue a URL from anywhere and it downloads in the background.
   disabled), one small `config.yaml`.
 - **AI-agent ready** — optional [MCP server](docs/mcp.md) (`grabbit-mcp`) exposes
   `queue_download` / `list_downloads` / `download_status`; disable with one flag.
+- **Escape JDownloader** — [`grabbit-import-jd`](docs/import-jdownloader.md)
+  migrates an existing JDownloader queue, packages becoming sub-folders.
 
 > **Status: active development.** The GHCR image is private for now — build from
 > source until the public launch.
@@ -42,7 +44,8 @@ Open http://localhost:8080, paste the key. Full guide: [docs/install.md](docs/in
 
 - [Install & deploy](docs/install.md) · [Configuration](docs/configuration.md)
 - [Reverse-proxy configs](docs/deploy/) (nginx / Caddy / Traefik)
-- [Chrome extension](docs/extension.md) · [MCP server](docs/mcp.md)
+- [Chrome extension](docs/extension.md) · [MCP server](docs/mcp.md) ·
+  [JDownloader import](docs/import-jdownloader.md)
 - [Build spec / design](docs/SPEC.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 ## Why not fork JDownloader?
@@ -55,7 +58,6 @@ engine version bump — or a patch upstream — never a fork. See
 
 ## Backlog (post-v1)
 
-- JDownloader queue importer.
 - Per-host fallback engine (cyberdrop-dl) behind the same adapter.
 
 ## License
