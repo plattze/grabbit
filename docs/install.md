@@ -1,5 +1,9 @@
 # Installing Grabbit
 
+> **During active development** the GHCR image is private. Clone the repo and add
+> `--build` to the compose command (the checked-in compose file already has
+> `build: .`), or `docker login ghcr.io` with a PAT that has `read:packages`.
+
 ## Docker Compose (recommended)
 
 ```yaml

@@ -25,12 +25,14 @@ container: queue a URL from anywhere and it downloads in the background.
 - **Homelab-friendly** — Prometheus `/metrics`, JSON logs with rotation (or fully
   disabled), one small `config.yaml`.
 
-## Quickstart
+> **Status: active development.** The GHCR image is private for now — build from
+> source until the public launch.
+
+## Quickstart (from source)
 
 ```bash
-mkdir grabbit && cd grabbit
-curl -O https://raw.githubusercontent.com/plattze/grabbit/main/docker-compose.yml
-docker compose up -d
+git clone https://github.com/plattze/grabbit.git && cd grabbit
+docker compose up -d --build
 docker compose logs grabbit    # copy the one-time admin API key
 ```
 
