@@ -18,6 +18,7 @@ all defaults.
 | Key | Default | Notes |
 |---|---|---|
 | `dest` | `/downloads` | Root output directory (volume). |
+| `incomplete_dir` | `null` | Staging directory, e.g. `/downloads/.incomplete`. Active jobs download into `<incomplete_dir>/job-<id>/` and move to `dest` when done, so anything under `dest` is complete and safe to consume. Keep it on the same filesystem as `dest` for atomic renames (cross-device falls back to copy+delete). `null` = write directly into `dest`. |
 | `max_concurrent` | `5` | Simultaneous jobs overall. |
 | `max_per_host` | `2` | Simultaneous jobs per host (politeness). |
 | `filename_template` | `null` | gallery-dl filename template. |
@@ -64,6 +65,7 @@ Handy for compose; env wins over the YAML file.
 | `GRABBIT_PORT` | `server.port` |
 | `GRABBIT_ROOT_PATH` | `server.root_path` |
 | `GRABBIT_DEST` | `downloads.dest` |
+| `GRABBIT_INCOMPLETE_DIR` | `downloads.incomplete_dir` |
 | `GRABBIT_DATA_DIR` | data dir (SQLite DB, logs) |
 | `GRABBIT_ENGINE_CHANNEL` | `engine.channel` |
 | `GRABBIT_LOG_LEVEL` | `logging.level` |

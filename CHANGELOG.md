@@ -15,6 +15,11 @@ All notable changes to Grabbit are documented here. The format follows
 - JDownloader queue importer (`grabbit-import-jd`): parses `downloadList*.zip`,
   maps packages to dest sub-folders, and submits through the normal REST
   validation path (per-URL rejection reasons, rate-limit aware, `--dry-run`).
+- Optional sabnzbd-style staging layout (`downloads.incomplete_dir` /
+  `GRABBIT_INCOMPLETE_DIR`): active jobs download into
+  `<incomplete_dir>/job-<id>/` and move to `dest` on completion (atomic rename
+  on the same filesystem), so files under `dest` are always complete. Cancelled
+  jobs' staged partials are cleaned up; paused jobs keep theirs for resume.
 
 ## [0.1.0] - 2026-07-11
 

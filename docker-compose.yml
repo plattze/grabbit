@@ -15,3 +15,4 @@ services:
       - TZ=Etc/UTC
       # - GRABBIT_ENGINE_CHANNEL=dev   # runtime hint; dev engine needs the dev-built image
       # - GRABBIT_MCP_ENABLED=false    # disable the grabbit-mcp entrypoint (AI-agent tools)
+      # - GRABBIT_INCOMPLETE_DIR=/downloads/.incomplete   # stage active jobs, move on completion

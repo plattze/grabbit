@@ -9,6 +9,9 @@ server:
 
 downloads:
   dest: /downloads
+  incomplete_dir: null      # e.g. /downloads/.incomplete — active jobs stage here and
+                            # move to dest on completion (sabnzbd-style). Keep it on the
+                            # same volume as dest so the move is an atomic rename.
   max_concurrent: 5
   max_per_host: 2
   filename_template: null   # gallery-dl filename template, e.g. "{category}_{filename}.{extension}"

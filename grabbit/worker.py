@@ -5,7 +5,10 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import os
+import shutil
 from collections import defaultdict
+from pathlib import Path
 
 from .config import Config
 from .db import Database
@@ -15,6 +18,37 @@ from .logging_setup import redact_url
 from .models import JobState
 
 log = logging.getLogger(__name__)
+
+
+def staging_dir(cfg: Config, job_id: int) -> Path | None:
+    """Per-job staging dir under downloads.incomplete_dir; None when disabled."""
+    inc = cfg.downloads.incomplete_dir
+    return inc / f"job-{job_id}" if inc else None
+
+
+def cleanup_staging(cfg: Config, job_id: int) -> None:
+    """Remove a job's staging leftovers (cancelled/deleted jobs)."""
+    stage = staging_dir(cfg, job_id)
+    if stage and stage.is_dir():
+        shutil.rmtree(stage, ignore_errors=True)
+
+
+def _move_tree(src: Path, dst: Path) -> None:
+    """Move every file under src into dst, preserving relative paths.
+
+    os.replace is atomic on the same filesystem; falls back to shutil.move
+    (copy+delete) across filesystems. Empty staging tree is removed after.
+    """
+    for path in sorted(src.rglob("*")):
+        if path.is_dir():
+            continue
+        target = dst / path.relative_to(src)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.replace(path, target)
+        except OSError:
+            shutil.move(str(path), str(target))
+    shutil.rmtree(src, ignore_errors=True)
 
 
 class WorkerPool:
@@ -94,8 +128,10 @@ class WorkerPool:
             def on_progress(ev: ProgressEvent) -> None:
                 loop.create_task(self._on_progress(job_id, ev))
 
+            final_dest = self.cfg.downloads.dest / dest if dest else self.cfg.downloads.dest
+            stage = staging_dir(self.cfg, job_id)
             opts = EngineOpts(
-                dest=self.cfg.downloads.dest / dest if dest else self.cfg.downloads.dest,
+                dest=stage or final_dest,
                 retries=self.cfg.engine.retries,
                 rate_limit=self.cfg.engine.rate_limit,
                 filename_template=self.cfg.downloads.filename_template,
@@ -104,12 +140,18 @@ class WorkerPool:
             result = await self.engine.download(url, opts, on_progress, job_id=job_id)
 
             # A pause/cancel that raced the finish wins over the engine result.
+            # Paused: staged partials stay put — resume re-runs into the same
+            # staging dir and skips existing files. Cancelled: drop them.
             current = await self.db.get_job(job_id)
             if current and current.state in (JobState.PAUSED, JobState.CANCELLED):
+                if current.state == JobState.CANCELLED:
+                    cleanup_staging(self.cfg, job_id)
                 self._publish(job_id, current.state)
                 return
 
             if result.success:
+                if stage and stage.is_dir():
+                    await asyncio.to_thread(_move_tree, stage, final_dest)
                 await self.db.update_job(job_id, files_done=result.files_done,
                                          files_total=result.files_done)
                 await self.db.set_state(job_id, JobState.DONE)

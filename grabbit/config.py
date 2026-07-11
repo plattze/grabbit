@@ -19,6 +19,7 @@ class ServerConfig(BaseModel):
 
 class DownloadsConfig(BaseModel):
     dest: Path = Path("/downloads")
+    incomplete_dir: Path | None = None  # staging dir; null = write directly into dest
     max_concurrent: int = 5
     max_per_host: int = 2
     filename_template: str | None = None
@@ -78,6 +79,7 @@ _ENV_OVERRIDES: dict[str, tuple[str, ...]] = {
     "GRABBIT_PORT": ("server", "port"),
     "GRABBIT_ROOT_PATH": ("server", "root_path"),
     "GRABBIT_DEST": ("downloads", "dest"),
+    "GRABBIT_INCOMPLETE_DIR": ("downloads", "incomplete_dir"),
     "GRABBIT_DATA_DIR": ("data_dir",),
     "GRABBIT_ENGINE_CHANNEL": ("engine", "channel"),
     "GRABBIT_LOG_LEVEL": ("logging", "level"),

@@ -12,7 +12,8 @@ container: queue a URL from anywhere and it downloads in the background.
 - **Real web UI** — live queue with WebSocket progress, job controls
   (pause/resume/retry/cancel), stats, and API-key management. No JVM, no VNC.
 - **Always-on & durable** — SQLite-backed queue survives restarts and resumes
-  interrupted jobs automatically.
+  interrupted jobs automatically. Optional sabnzbd-style `incomplete/` staging:
+  files only appear in the downloads folder once a job is complete.
 - **Engine channels** — the download engine is pinned to the **stable** channel by
   default; switch to **dev** when you need an extractor fix that isn't in a tagged
   release yet. Zero app-code difference.

@@ -15,6 +15,7 @@ from .auth import require_admin, require_submit
 from .logging_setup import redact_url
 from .models import ApiKeyCreated, ApiKeyInfo, Job, JobState, KeyScope, SubmitRequest, SubmitResult
 from .ssrf import SSRFError, check_url
+from .worker import cleanup_staging
 
 log = logging.getLogger(__name__)
 
@@ -133,10 +134,15 @@ async def cancel(job_id: int, request: Request,
         await st.db.set_state(job_id, JobState.CANCELLED)
         st.workers.cancel_job(job_id)
         st.hub.publish({"type": "state", "job_id": job_id, "state": JobState.CANCELLED.value})
+        if job.state != JobState.ACTIVE:
+            # No engine process is writing; safe to drop staged partials now.
+            # (An active job's worker cleans up after its process exits.)
+            cleanup_staging(st.cfg, job_id)
     else:
-        # terminal job: remove from history
+        # terminal job: remove from history (plus any staging leftovers)
         await st.db.conn.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
         await st.db.conn.commit()
+        cleanup_staging(st.cfg, job_id)
 
 
 @router.get("/stats")
