@@ -4,6 +4,15 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- MCP server (`grabbit-mcp`, stdio) so AI agents can queue downloads natively:
+  `queue_download`, `list_downloads`, `download_status` — a thin wrapper over
+  the REST API using submit-scoped key auth. Ships in the Docker image and as
+  the `mcp` extra (`pip install "grabbit[mcp]"`). Disable with
+  `mcp.enabled: false` or `GRABBIT_MCP_ENABLED=false`.
+
 ## [0.1.0] - 2026-07-11
 
 ### Added

@@ -35,3 +35,7 @@ security:
 
 metrics:
   enabled: true          # GET /metrics (Prometheus)
+
+mcp:
+  enabled: true          # false = the grabbit-mcp entrypoint refuses to start
+                         # (env override: GRABBIT_MCP_ENABLED=false)

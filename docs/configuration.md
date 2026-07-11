@@ -45,13 +45,14 @@ all defaults.
 
 Signed-URL token query params are redacted before URLs are logged.
 
-## security / metrics
+## security / metrics / mcp
 
 | Key | Default | Notes |
 |---|---|---|
 | `security.require_auth` | `true` | API-key auth on all mutating/listing endpoints. |
 | `security.update_check` | `false` | No phone-home, ever. |
 | `metrics.enabled` | `true` | Prometheus at `/metrics`. |
+| `mcp.enabled` | `true` | `false` = the [`grabbit-mcp`](mcp.md) entrypoint refuses to start. Nothing listens either way unless you run `grabbit-mcp`. |
 
 ## Environment overrides
 
@@ -67,3 +68,7 @@ Handy for compose; env wins over the YAML file.
 | `GRABBIT_ENGINE_CHANNEL` | `engine.channel` |
 | `GRABBIT_LOG_LEVEL` | `logging.level` |
 | `GRABBIT_LOG_ENABLED` | `logging.enabled` |
+| `GRABBIT_MCP_ENABLED` | `mcp.enabled` |
+
+The MCP server itself is configured with `GRABBIT_MCP_URL` and
+`GRABBIT_MCP_API_KEY` — see [mcp.md](mcp.md).

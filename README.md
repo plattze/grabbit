@@ -1,8 +1,6 @@
 # Grabbit
 
-A modern, self-hosted, web-native download manager — an engine-backed product built on
-[gallery-dl](https://codeberg.org/mikf/gallery-dl), the same way MeTube wraps yt-dlp or
-Jellyfin wraps ffmpeg.
+A modern, self-hosted, web-native download manager.
 
 Grabbit replaces heavyweight JDownloader-over-noVNC deployments with a single always-on
 container: queue a URL from anywhere and it downloads in the background.
@@ -15,15 +13,17 @@ container: queue a URL from anywhere and it downloads in the background.
   (pause/resume/retry/cancel), stats, and API-key management. No JVM, no VNC.
 - **Always-on & durable** — SQLite-backed queue survives restarts and resumes
   interrupted jobs automatically.
-- **Engine channels** — the gallery-dl engine is pinned to the **stable** channel
-  (tagged PyPI release) by default; switch to **dev** (upstream master) when you need
-  an extractor fix that isn't tagged yet. Zero app-code difference.
+- **Engine channels** — the download engine is pinned to the **stable** channel by
+  default; switch to **dev** when you need an extractor fix that isn't in a tagged
+  release yet. Zero app-code difference.
 - **Reverse-proxy first** — ships with nginx/Caddy/Traefik configs, works under a
   sub-path, WebSocket included. Honors `X-Forwarded-*` only from trusted proxies.
 - **Secure by default** — mandatory scoped API keys (scrypt-hashed, shown once),
   SSRF guards for private/link-local addresses, strict CSP, zero telemetry.
 - **Homelab-friendly** — Prometheus `/metrics`, JSON logs with rotation (or fully
   disabled), one small `config.yaml`.
+- **AI-agent ready** — optional [MCP server](docs/mcp.md) (`grabbit-mcp`) exposes
+  `queue_download` / `list_downloads` / `download_status`; disable with one flag.
 
 > **Status: active development.** The GHCR image is private for now — build from
 > source until the public launch.
@@ -42,24 +42,23 @@ Open http://localhost:8080, paste the key. Full guide: [docs/install.md](docs/in
 
 - [Install & deploy](docs/install.md) · [Configuration](docs/configuration.md)
 - [Reverse-proxy configs](docs/deploy/) (nginx / Caddy / Traefik)
-- [Chrome extension](docs/extension.md)
+- [Chrome extension](docs/extension.md) · [MCP server](docs/mcp.md)
 - [Build spec / design](docs/SPEC.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
-## Why not fork JDownloader / gallery-dl?
+## Why not fork JDownloader?
 
 The hard, constantly-rotting part of a download manager is the per-site extractors.
-gallery-dl's community maintains those daily; Grabbit deliberately contains **zero**
-extractor code and never will. When a site breaks, the fix is an engine version bump —
-or a patch upstream — never a fork. See [docs/SPEC.md](docs/SPEC.md) for the full
-reasoning.
+Grabbit deliberately contains **zero** extractor code and never will — it delegates to
+a community-maintained engine behind a clean adapter. When a site breaks, the fix is an
+engine version bump — or a patch upstream — never a fork. See
+[docs/SPEC.md](docs/SPEC.md) for the full reasoning.
 
 ## Backlog (post-v1)
 
-- MCP server so AI agents can queue downloads natively (the REST API works today).
 - JDownloader queue importer.
 - Per-host fallback engine (cyberdrop-dl) behind the same adapter.
 
 ## License
 
-[GPL-3.0](LICENSE). Grabbit depends on gallery-dl (GPL-2.0) as an external engine; its
-source is not vendored here.
+[GPL-3.0](LICENSE). Grabbit depends on an external GPL-2.0 download engine; its source
+is not vendored here.

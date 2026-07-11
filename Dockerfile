@@ -23,7 +23,7 @@ WORKDIR /app
 COPY pyproject.toml README.md LICENSE ./
 COPY grabbit/ ./grabbit/
 
-RUN pip install --no-cache-dir . && \
+RUN pip install --no-cache-dir ".[mcp]" && \
     if [ "$ENGINE_CHANNEL" = "dev" ]; then \
         pip install --no-cache-dir -U --force-reinstall \
             "gallery-dl @ https://codeberg.org/mikf/gallery-dl/archive/master.tar.gz"; \

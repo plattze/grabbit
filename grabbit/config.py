@@ -55,6 +55,10 @@ class MetricsConfig(BaseModel):
     enabled: bool = True
 
 
+class McpConfig(BaseModel):
+    enabled: bool = True
+
+
 class Config(BaseModel):
     server: ServerConfig = Field(default_factory=ServerConfig)
     downloads: DownloadsConfig = Field(default_factory=DownloadsConfig)
@@ -62,6 +66,7 @@ class Config(BaseModel):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     metrics: MetricsConfig = Field(default_factory=MetricsConfig)
+    mcp: McpConfig = Field(default_factory=McpConfig)
     data_dir: Path = Path("/config")
 
     @property
@@ -77,6 +82,7 @@ _ENV_OVERRIDES: dict[str, tuple[str, ...]] = {
     "GRABBIT_ENGINE_CHANNEL": ("engine", "channel"),
     "GRABBIT_LOG_LEVEL": ("logging", "level"),
     "GRABBIT_LOG_ENABLED": ("logging", "enabled"),
+    "GRABBIT_MCP_ENABLED": ("mcp", "enabled"),
 }
 
 
