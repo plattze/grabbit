@@ -27,7 +27,9 @@ _SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "Content-Security-Policy": (
-        "default-src 'self'; img-src 'self' data:; style-src 'self'; "
+        # unsafe-inline covers style *attributes* (React progress bars);
+        # scripts remain self-only.
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
         "connect-src 'self'; frame-ancestors 'none'"
     ),
 }
