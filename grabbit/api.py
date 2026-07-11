@@ -36,7 +36,7 @@ from .models import (
     utcnow,
 )
 from .ssrf import SSRFError, check_url
-from .worker import cleanup_staging
+from .worker import cleanup_staging, rename_dir
 
 log = logging.getLogger(__name__)
 
@@ -143,6 +143,47 @@ async def retry(job_id: int, request: Request,
     await st.db.update_job(job_id, state=JobState.QUEUED.value, error=None, finished_at=None)
     st.hub.publish({"type": "state", "job_id": job_id, "state": JobState.QUEUED.value})
     st.workers.notify()
+    return await _get_job_or_404(request, job_id)
+
+
+class RenameRequest(BaseModel):
+    name: str
+
+
+def _validate_dir_name(name: str) -> str:
+    name = name.strip()
+    if not name or "/" in name or "\\" in name or name in (".", ".."):
+        raise HTTPException(status_code=400, detail="invalid directory name")
+    return name
+
+
+@router.post("/downloads/{job_id}/rename", response_model=Job)
+async def rename(job_id: int, req: RenameRequest, request: Request,
+                 key: ApiKeyInfo = Depends(require_submit)) -> Job:
+    """Rename a job's output directory.
+
+    Running job: recorded and applied when the download completes (the engine
+    process and the staging move both keep writing to the original name).
+    Finished job: the directory is renamed on disk immediately.
+    """
+    st = _state(request)
+    name = _validate_dir_name(req.name)
+    job = await _get_job_or_404(request, job_id)
+
+    if job.state in (JobState.QUEUED, JobState.ACTIVE, JobState.PAUSED):
+        await st.db.update_job(job_id, rename_to=name)
+        return await _get_job_or_404(request, job_id)
+
+    if not job.dir_name:
+        raise HTTPException(status_code=409, detail="job has no output directory to rename")
+    if name != job.dir_name:
+        base = st.cfg.downloads.dest / job.dest if job.dest else st.cfg.downloads.dest
+        src = base / job.dir_name
+        if not src.is_dir():
+            raise HTTPException(status_code=409,
+                                detail=f"directory no longer exists: {job.dir_name}")
+        await asyncio.to_thread(rename_dir, src, base / name)
+        await st.db.update_job(job_id, dir_name=name)
     return await _get_job_or_404(request, job_id)
 
 

@@ -4,6 +4,17 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Rename a job's output directory from the web UI (new
+  `POST /api/downloads/{id}/rename`). The rename prompt prefills the current
+  directory name (tracked per job as `dir_name`, detected from the engine's
+  output paths). Renaming a running job is recorded and applied when the
+  download completes; renaming a finished job moves the directory immediately.
+  Renaming onto an existing directory merges into it. Directory-level only —
+  individual files cannot be renamed.
+
 ## [0.2.1] - 2026-07-11
 
 ### Added

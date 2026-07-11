@@ -159,11 +159,29 @@ function SubmitBox({ onSubmitted }: { onSubmitted: () => void }) {
 }
 
 function JobRow({ job, onChanged }: { job: Job; onChanged: () => void }) {
+  const [renaming, setRenaming] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
   const act = async (fn: () => Promise<unknown>) => {
     try {
       await fn();
     } catch {
       /* surfaced by refresh */
+    }
+    onChanged();
+  };
+  const canRename = job.state !== "cancelled" && (job.state !== "done" || job.dir_name !== "");
+  const startRename = () => {
+    setNewName(job.rename_to ?? job.dir_name);
+    setRenameError(null);
+    setRenaming(true);
+  };
+  const doRename = async () => {
+    try {
+      await api.rename(job.id, newName.trim());
+      setRenaming(false);
+    } catch (e) {
+      setRenameError(e instanceof ApiError ? e.message : "rename failed");
     }
     onChanged();
   };
@@ -184,13 +202,36 @@ function JobRow({ job, onChanged }: { job: Job; onChanged: () => void }) {
         {(job.state === "error" || job.state === "cancelled") && (
           <button onClick={() => act(() => api.retry(job.id))}>Retry</button>
         )}
+        {canRename && !renaming && <button onClick={startRename}>Rename</button>}
         <button onClick={() => act(() => api.remove(job.id))}>
           {["queued", "active", "paused"].includes(job.state) ? "Cancel" : "Remove"}
         </button>
       </div>
+      {renaming && (
+        <div className="submit-row">
+          <input
+            type="text"
+            placeholder="Directory name"
+            value={newName}
+            autoFocus
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newName.trim()) void doRename();
+              if (e.key === "Escape") setRenaming(false);
+            }}
+          />
+          <button className="primary" disabled={!newName.trim()} onClick={doRename}>
+            Rename
+          </button>
+          <button onClick={() => setRenaming(false)}>Cancel</button>
+        </div>
+      )}
+      {renameError && <div className="error">{renameError}</div>}
       <div className="meta">
         <span className={`badge ${job.state}`}>{job.state}</span>
         <span>{job.host}</span>
+        {job.dir_name && <span title="Output directory">📁 {job.dir_name}</span>}
+        {job.rename_to && <span>→ {job.rename_to} (on completion)</span>}
         {job.files_done > 0 && (
           <span>
             {job.files_done}

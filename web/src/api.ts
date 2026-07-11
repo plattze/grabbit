@@ -15,6 +15,8 @@ export interface Job {
   created_at: string;
   updated_at: string;
   finished_at: string | null;
+  dir_name: string;
+  rename_to: string | null;
 }
 
 export interface SubmitResult {
@@ -101,6 +103,8 @@ export const api = {
   pause: (id: number) => request<Job>(`downloads/${id}/pause`, { method: "POST" }),
   resume: (id: number) => request<Job>(`downloads/${id}/resume`, { method: "POST" }),
   retry: (id: number) => request<Job>(`downloads/${id}/retry`, { method: "POST" }),
+  rename: (id: number, name: string) =>
+    request<Job>(`downloads/${id}/rename`, { method: "POST", body: JSON.stringify({ name }) }),
   remove: (id: number) => request<void>(`downloads/${id}`, { method: "DELETE" }),
   stats: () => request<Stats>("stats"),
   settings: () => request<Settings>("settings"),

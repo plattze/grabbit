@@ -33,6 +33,29 @@ def cleanup_staging(cfg: Config, job_id: int) -> None:
         shutil.rmtree(stage, ignore_errors=True)
 
 
+def _top_dir(root: Path, file_path: str | None) -> str:
+    """First directory component of file_path under root; '' if flat/unknown."""
+    if not file_path:
+        return ""
+    try:
+        rel = Path(file_path).relative_to(root)
+    except ValueError:
+        return ""
+    return rel.parts[0] if len(rel.parts) > 1 else ""
+
+
+def rename_dir(src: Path, dst: Path) -> None:
+    """Rename a job's directory; merge into dst if it already exists."""
+    if dst.is_dir():
+        _move_tree(src, dst)
+    else:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.replace(src, dst)
+        except OSError:
+            shutil.move(str(src), str(dst))
+
+
 def _move_tree(src: Path, dst: Path) -> None:
     """Move every file under src into dst, preserving relative paths.
 
@@ -125,11 +148,19 @@ class WorkerPool:
             self._publish(job_id, JobState.ACTIVE)
             log.info("job %d start: %s", job_id, redact_url(url))
 
-            def on_progress(ev: ProgressEvent) -> None:
-                loop.create_task(self._on_progress(job_id, ev))
-
             final_dest = self.cfg.downloads.dest / dest if dest else self.cfg.downloads.dest
             stage = staging_dir(self.cfg, job_id)
+            job_root = stage or final_dest
+            seen_dir = ""
+
+            def on_progress(ev: ProgressEvent) -> None:
+                nonlocal seen_dir
+                top = _top_dir(job_root, ev.current_file)
+                if top and top != seen_dir:
+                    seen_dir = top
+                    loop.create_task(self.db.update_job(job_id, dir_name=top))
+                loop.create_task(self._on_progress(job_id, ev))
+
             opts = EngineOpts(
                 dest=stage or final_dest,
                 retries=self.cfg.engine.retries,
@@ -153,6 +184,7 @@ class WorkerPool:
             if result.success:
                 if stage and stage.is_dir():
                     await asyncio.to_thread(_move_tree, stage, final_dest)
+                await self._apply_pending_rename(job_id, final_dest)
                 await self.db.update_job(job_id, files_done=result.files_done,
                                          files_total=result.files_done)
                 await self.db.set_state(job_id, JobState.DONE)
@@ -174,6 +206,22 @@ class WorkerPool:
             self._host_sems[host].release()
             self._global_sem.release()
             self._wakeup.set()
+
+    async def _apply_pending_rename(self, job_id: int, final_dest: Path) -> None:
+        """Apply a rename requested while the job was running (models.Job.rename_to)."""
+        job = await self.db.get_job(job_id)
+        if not job or not job.rename_to or job.rename_to == job.dir_name:
+            if job and job.rename_to:
+                await self.db.update_job(job_id, rename_to=None)
+            return
+        src = final_dest / job.dir_name if job.dir_name else None
+        if src and src.is_dir():
+            await asyncio.to_thread(rename_dir, src, final_dest / job.rename_to)
+            await self.db.update_job(job_id, dir_name=job.rename_to, rename_to=None)
+            log.info("job %d renamed dir %r -> %r", job_id, job.dir_name, job.rename_to)
+        else:
+            await self.db.update_job(job_id, rename_to=None)
+            log.warning("job %d rename skipped: no directory %r", job_id, job.dir_name)
 
     async def _on_progress(self, job_id: int, ev: ProgressEvent) -> None:
         await self.db.update_job(job_id, files_done=ev.files_done)

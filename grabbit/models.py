@@ -31,6 +31,11 @@ class Job(BaseModel):
     created_at: datetime
     updated_at: datetime
     finished_at: datetime | None = None
+    # Output directory of this job's files, relative to dest/<dest sub-path>;
+    # "" until detected (or when files land flat in the destination root).
+    dir_name: str = ""
+    # Rename requested while the job was still running; applied at completion.
+    rename_to: str | None = None
 
 
 class SubmitRequest(BaseModel):

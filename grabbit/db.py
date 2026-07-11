@@ -25,7 +25,9 @@ CREATE TABLE IF NOT EXISTS jobs (
     error TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
-    finished_at TEXT
+    finished_at TEXT,
+    dir_name TEXT NOT NULL DEFAULT '',
+    rename_to TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs(state);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_url_open ON jobs(url)
@@ -57,6 +59,7 @@ def _row_to_job(row: aiosqlite.Row) -> Job:
         created_at=datetime.fromisoformat(row["created_at"]),
         updated_at=datetime.fromisoformat(row["updated_at"]),
         finished_at=datetime.fromisoformat(row["finished_at"]) if row["finished_at"] else None,
+        dir_name=row["dir_name"], rename_to=row["rename_to"],
     )
 
 
@@ -77,7 +80,18 @@ class Database:
         await self._conn.execute("PRAGMA journal_mode=WAL")
         await self._conn.execute("PRAGMA foreign_keys=ON")
         await self._conn.executescript(_SCHEMA)
+        await self._migrate()
         await self._conn.commit()
+
+    async def _migrate(self) -> None:
+        """Add columns introduced after a release (CREATE IF NOT EXISTS won't)."""
+        cur = await self.conn.execute("PRAGMA table_info(jobs)")
+        cols = {row["name"] for row in await cur.fetchall()}
+        if "dir_name" not in cols:
+            await self.conn.execute(
+                "ALTER TABLE jobs ADD COLUMN dir_name TEXT NOT NULL DEFAULT ''")
+        if "rename_to" not in cols:
+            await self.conn.execute("ALTER TABLE jobs ADD COLUMN rename_to TEXT")
 
     async def close(self) -> None:
         if self._conn:
