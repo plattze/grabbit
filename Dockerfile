@@ -11,7 +11,7 @@ RUN if [ -f web/package.json ]; then \
     fi
 
 # --- python runtime
-FROM python:3.12-slim AS runtime
+FROM python:3.14-slim AS runtime
 
 # GRABBIT_ENGINE_CHANNEL=dev at *build* time installs gallery-dl from upstream
 # master instead of the pinned PyPI release; runtime config mirrors the choice.
