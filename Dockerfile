@@ -30,6 +30,8 @@ RUN pip install --no-cache-dir ".[mcp]" && \
     fi
 
 COPY --from=ui /build/web/dist/ ./grabbit/static/
+# Bundle the Chrome extension so /api/extension.zip can serve a preconfigured copy.
+COPY extension/ ./grabbit/extension/
 
 RUN mkdir -p /config /downloads && chown -R grabbit:grabbit /config /downloads
 VOLUME ["/config", "/downloads"]

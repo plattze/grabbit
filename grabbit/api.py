@@ -3,17 +3,38 @@
 from __future__ import annotations
 
 import asyncio
+import io
+import json
 import logging
 import shutil
+import zipfile
+from pathlib import Path
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Request,
+    Response,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from pydantic import BaseModel
 
 from . import __version__
 from .auth import require_admin, require_submit
 from .logging_setup import redact_url
-from .models import ApiKeyCreated, ApiKeyInfo, Job, JobState, KeyScope, SubmitRequest, SubmitResult
+from .models import (
+    ApiKeyCreated,
+    ApiKeyInfo,
+    Job,
+    JobState,
+    KeyScope,
+    SubmitRequest,
+    SubmitResult,
+    utcnow,
+)
 from .ssrf import SSRFError, check_url
 from .worker import cleanup_staging
 
@@ -157,12 +178,56 @@ async def stats(request: Request, key: ApiKeyInfo = Depends(require_submit)) -> 
         "disk_free_bytes": disk.free,
         "disk_total_bytes": disk.total,
         "version": __version__,
+        # For extension auto-config; null = client falls back to its own origin.
+        "public_url": st.cfg.server.public_url,
     }
 
 
 @router.get("/health")
 async def health() -> dict:
     return {"status": "ok", "version": __version__}
+
+
+def _extension_dir() -> Path | None:
+    """Bundled extension source: package data (Docker) or repo checkout (dev)."""
+    for candidate in (Path(__file__).parent / "extension",
+                      Path(__file__).parent.parent / "extension"):
+        if (candidate / "manifest.json").is_file():
+            return candidate
+    return None
+
+
+@router.get("/extension.zip")
+async def extension_zip(request: Request,
+                        key: ApiKeyInfo = Depends(require_admin)) -> Response:
+    """Download the Chrome extension, preconfigured for this server.
+
+    Mints a fresh submit-scoped API key and bakes it — together with the
+    server's public URL — into a preconfig.json inside the zip; the extension
+    reads it on install, so no manual setup is needed. Admin scope, because
+    it creates a key.
+    """
+    ext_dir = _extension_dir()
+    if ext_dir is None:
+        raise HTTPException(status_code=404, detail="extension not bundled in this build")
+    st = _state(request)
+
+    host = st.cfg.server.public_url or str(request.base_url)
+    host = host.rstrip("/")
+    created = await st.db.create_key(
+        f"chrome-extension ({utcnow():%Y-%m-%d %H:%M})", KeyScope.SUBMIT)
+    log.info("minted submit key %d for extension download (by key %d)", created.id, key.id)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in sorted(ext_dir.rglob("*")):
+            if path.is_file():
+                zf.write(path, path.relative_to(ext_dir))
+        zf.writestr("preconfig.json", json.dumps({"host": host, "apiKey": created.token}))
+    return Response(
+        content=buf.getvalue(), media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="grabbit-extension.zip"'},
+    )
 
 
 # -- API keys (admin) --------------------------------------------------------

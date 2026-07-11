@@ -15,6 +15,12 @@ All notable changes to Grabbit are documented here. The format follows
 - JDownloader queue importer (`grabbit-import-jd`): parses `downloadList*.zip`,
   maps packages to dest sub-folders, and submits through the normal REST
   validation path (per-URL rejection reasons, rate-limit aware, `--dry-run`).
+- "Install Chrome plugin" on the web UI home page: downloads the extension
+  zipped from `/api/extension.zip` (admin scope), preconfigured with the
+  server URL and a freshly minted submit-scoped API key baked into
+  `preconfig.json` — the extension applies it on install, zero manual setup.
+  New `server.public_url` / `GRABBIT_PUBLIC_URL` config for deployments behind
+  a reverse proxy (also surfaced in `/api/stats`).
 - Optional sabnzbd-style staging layout (`downloads.incomplete_dir` /
   `GRABBIT_INCOMPLETE_DIR`): active jobs download into
   `<incomplete_dir>/job-<id>/` and move to `dest` on completion (atomic rename

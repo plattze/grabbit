@@ -3,7 +3,20 @@
 The extension lives in [`extension/`](../extension/) and is loaded unpacked
 (not on the Web Store yet).
 
-## Install
+## Install (preconfigured — recommended)
+
+1. In the Grabbit web UI (logged in with an **admin** key), click
+   **Install Chrome plugin** on the home page. The server mints a fresh
+   `submit`-scoped API key and bakes it, plus the server URL, into the
+   downloaded zip.
+2. Unzip it, open `chrome://extensions`, enable **Developer mode**,
+   **Load unpacked** → select the unzipped directory. Done — no manual setup.
+
+Behind a reverse proxy, set `server.public_url` (or `GRABBIT_PUBLIC_URL`) to
+the externally reachable URL so the baked-in server address is right; without
+it, the address you're browsing from is used.
+
+## Install (manual)
 
 1. Open `chrome://extensions`, enable **Developer mode**.
 2. **Load unpacked** → select the `extension/` directory.

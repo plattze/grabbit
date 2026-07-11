@@ -6,6 +6,8 @@ server:
   port: 8080
   root_path: ""          # set when mounted under a proxy sub-path, e.g. "/grabbit"
   trusted_proxies: ["127.0.0.1"]
+  public_url: null       # externally reachable URL, e.g. https://nas.example.home/grabbit
+                         # (used to preconfigure the Chrome extension download)
 
 downloads:
   dest: /downloads

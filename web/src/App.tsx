@@ -62,6 +62,42 @@ function Login({ onDone }: { onDone: () => void }) {
   );
 }
 
+function InstallExtension() {
+  const [state, setState] = useState<"idle" | "busy" | "done" | "denied" | "error">("idle");
+
+  const download = async () => {
+    setState("busy");
+    try {
+      await api.downloadExtension();
+      setState("done");
+    } catch (e) {
+      setState(e instanceof ApiError && e.status === 403 ? "denied" : "error");
+    }
+  };
+
+  return (
+    <div className="panel install-ext">
+      <span>
+        <b>Chrome extension</b> — right-click any page or link → “Send to Grabbit”.
+      </span>
+      <button className="primary" onClick={download} disabled={state === "busy"}>
+        {state === "busy" ? "Preparing…" : "Install Chrome plugin"}
+      </button>
+      {state === "done" && (
+        <p className="hint">
+          Downloaded, preconfigured with this server and a fresh API key. Unzip it, open{" "}
+          <code>chrome://extensions</code>, enable Developer mode, and <b>Load unpacked</b> —
+          done, no further setup.
+        </p>
+      )}
+      {state === "denied" && (
+        <p className="hint">Needs an admin key (the download mints a submit key for the extension).</p>
+      )}
+      {state === "error" && <p className="hint">Download failed — check the server logs.</p>}
+    </div>
+  );
+}
+
 function SubmitBox({ onSubmitted }: { onSubmitted: () => void }) {
   const [text, setText] = useState("");
   const [dest, setDest] = useState("");
@@ -305,6 +341,8 @@ export default function App() {
               <JobRow key={job.id} job={job} onChanged={scheduleRefresh} />
             ))}
           </div>
+
+          <InstallExtension />
         </>
       )}
     </div>

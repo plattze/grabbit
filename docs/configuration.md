@@ -12,6 +12,7 @@ all defaults.
 | `port` | `8080` | |
 | `root_path` | `""` | Set when mounted under a proxy sub-path, e.g. `/grabbit`. |
 | `trusted_proxies` | `["127.0.0.1"]` | Only these sources may set `X-Forwarded-*`; from anyone else the headers are stripped. |
+| `public_url` | `null` | Externally reachable base URL (e.g. `https://nas.example.home/grabbit`). Can't be inferred behind a reverse proxy; used to preconfigure the Chrome extension download. `null` = the requesting browser's origin is used. |
 
 ## downloads
 
@@ -64,6 +65,7 @@ Handy for compose; env wins over the YAML file.
 | `GRABBIT_CONFIG` | config file path |
 | `GRABBIT_PORT` | `server.port` |
 | `GRABBIT_ROOT_PATH` | `server.root_path` |
+| `GRABBIT_PUBLIC_URL` | `server.public_url` |
 | `GRABBIT_DEST` | `downloads.dest` |
 | `GRABBIT_INCOMPLETE_DIR` | `downloads.incomplete_dir` |
 | `GRABBIT_DATA_DIR` | data dir (SQLite DB, logs) |

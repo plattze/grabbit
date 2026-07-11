@@ -15,6 +15,10 @@ class ServerConfig(BaseModel):
     port: int = 8080
     root_path: str = ""
     trusted_proxies: list[str] = Field(default_factory=lambda: ["127.0.0.1"])
+    # Externally reachable base URL (e.g. https://nas.example.home/grabbit).
+    # Cannot be inferred behind a reverse proxy; used to preconfigure the
+    # Chrome extension. null = fall back to the browser's own origin.
+    public_url: str | None = None
 
 
 class DownloadsConfig(BaseModel):
@@ -78,6 +82,7 @@ class Config(BaseModel):
 _ENV_OVERRIDES: dict[str, tuple[str, ...]] = {
     "GRABBIT_PORT": ("server", "port"),
     "GRABBIT_ROOT_PATH": ("server", "root_path"),
+    "GRABBIT_PUBLIC_URL": ("server", "public_url"),
     "GRABBIT_DEST": ("downloads", "dest"),
     "GRABBIT_INCOMPLETE_DIR": ("downloads", "incomplete_dir"),
     "GRABBIT_DATA_DIR": ("data_dir",),

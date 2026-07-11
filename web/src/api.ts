@@ -31,6 +31,7 @@ export interface Stats {
   disk_free_bytes: number;
   disk_total_bytes: number;
   version: string;
+  public_url: string | null;
 }
 
 export interface ApiKeyInfo {
@@ -100,6 +101,28 @@ export const api = {
   createKey: (name: string, scope: "submit" | "admin") =>
     request<ApiKeyCreated>("keys", { method: "POST", body: JSON.stringify({ name, scope }) }),
   deleteKey: (id: number) => request<void>(`keys/${id}`, { method: "DELETE" }),
+  // Admin-scoped: the server mints a submit key and bakes it into the zip.
+  downloadExtension: async (): Promise<void> => {
+    const res = await fetch(apiUrl("extension.zip"), {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try {
+        detail = (await res.json()).detail ?? detail;
+      } catch {
+        /* not json */
+      }
+      throw new ApiError(res.status, detail);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "grabbit-extension.zip";
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };
 
 export type WsEvent =

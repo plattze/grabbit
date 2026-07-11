@@ -3,6 +3,24 @@
 const MENU_LINK = "grabbit-send-link";
 const MENU_PAGE = "grabbit-send-page";
 
+// Zero-setup install: a zip downloaded from a Grabbit server carries a
+// preconfig.json (server URL + a freshly minted submit key). Apply it once,
+// never overwriting settings the user already has.
+async function applyPreconfig() {
+  const existing = await chrome.storage.sync.get(["host", "apiKey"]);
+  if (existing.host || existing.apiKey) return;
+  try {
+    const res = await fetch(chrome.runtime.getURL("preconfig.json"));
+    const { host, apiKey } = await res.json();
+    if (host && apiKey) {
+      await chrome.storage.sync.set({ host: host.replace(/\/+$/, ""), apiKey });
+      notify("Grabbit connected", `Preconfigured for ${host}`);
+    }
+  } catch {
+    // No preconfig bundled (manual install) — user configures via Options.
+  }
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: MENU_LINK,
@@ -14,6 +32,7 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "Send page to Grabbit",
     contexts: ["page"],
   });
+  applyPreconfig();
 });
 
 async function getSettings() {
