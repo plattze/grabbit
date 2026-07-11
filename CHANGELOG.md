@@ -4,7 +4,7 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.0] - 2026-07-11
 
 ### Added
 - MCP server (`grabbit-mcp`, stdio) so AI agents can queue downloads natively:
@@ -48,4 +48,5 @@ All notable changes to Grabbit are documented here. The format follows
 - Prometheus `/metrics`, JSON logs with rotation and a full disable switch.
 - Docker image (non-root, healthcheck) and compose file.
 
+[0.2.0]: https://github.com/plattze/grabbit/releases/tag/v0.2.0
 [0.1.0]: https://github.com/plattze/grabbit/releases/tag/v0.1.0
