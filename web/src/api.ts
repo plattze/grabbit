@@ -105,6 +105,11 @@ export const api = {
   retry: (id: number) => request<Job>(`downloads/${id}/retry`, { method: "POST" }),
   rename: (id: number, name: string) =>
     request<Job>(`downloads/${id}/rename`, { method: "POST", body: JSON.stringify({ name }) }),
+  merge: (jobIds: number[], name: string) =>
+    request<Job[]>("downloads/merge", {
+      method: "POST",
+      body: JSON.stringify({ job_ids: jobIds, name }),
+    }),
   remove: (id: number) => request<void>(`downloads/${id}`, { method: "DELETE" }),
   stats: () => request<Stats>("stats"),
   settings: () => request<Settings>("settings"),

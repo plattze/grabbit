@@ -4,6 +4,17 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Merge completed downloads from the history view (new
+  `POST /api/downloads/merge`): select two or more finished jobs with the new
+  checkboxes and a "Merge into one folder" action appears. It prompts for a
+  folder name (prefilled with the first selection's) and moves every selected
+  job's files into that directory; filename collisions are kept with a
+  `" (2)"` suffix. The original history entries remain, all pointing at the
+  merged directory.
+
 ## [0.2.2] - 2026-07-11
 
 ### Added

@@ -56,6 +56,33 @@ def rename_dir(src: Path, dst: Path) -> None:
             shutil.move(str(src), str(dst))
 
 
+def merge_dirs(sources: list[Path], dst: Path) -> None:
+    """Move files from each source dir into dst.
+
+    Unlike _move_tree (skip-existing re-runs, overwrite is correct), merged
+    jobs may legitimately contain equal filenames — collisions are kept by
+    suffixing ' (2)', ' (3)', … Emptied source dirs are removed.
+    """
+    dst.mkdir(parents=True, exist_ok=True)
+    for src in sources:
+        if not src.is_dir() or src.resolve() == dst.resolve():
+            continue
+        for path in sorted(src.rglob("*")):
+            if path.is_dir():
+                continue
+            target = dst / path.relative_to(src)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            n = 2
+            while target.exists():
+                target = target.with_name(f"{target.stem} ({n}){target.suffix}")
+                n += 1
+            try:
+                os.replace(path, target)
+            except OSError:
+                shutil.move(str(path), str(target))
+        shutil.rmtree(src, ignore_errors=True)
+
+
 def _move_tree(src: Path, dst: Path) -> None:
     """Move every file under src into dst, preserving relative paths.
 

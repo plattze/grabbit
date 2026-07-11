@@ -158,7 +158,86 @@ function SubmitBox({ onSubmitted }: { onSubmitted: () => void }) {
   );
 }
 
-function JobRow({ job, onChanged }: { job: Job; onChanged: () => void }) {
+function MergeBar({
+  jobs,
+  selected,
+  onDone,
+  onClear,
+}: {
+  jobs: Job[];
+  selected: number[];
+  onDone: () => void;
+  onClear: () => void;
+}) {
+  const [asking, setAsking] = useState(false);
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const first = jobs.find((j) => j.id === selected[0]);
+
+  const start = () => {
+    setName(first?.dir_name ?? "");
+    setError(null);
+    setAsking(true);
+  };
+  const doMerge = async () => {
+    try {
+      await api.merge(selected, name.trim());
+      setAsking(false);
+      onClear();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "merge failed");
+    }
+    onDone();
+  };
+
+  return (
+    <div className="panel statbar">
+      <span>
+        <b>{selected.length}</b> selected
+      </span>
+      {!asking && (
+        <>
+          <button className="primary" onClick={start}>
+            Merge into one folder
+          </button>
+          <button onClick={onClear}>Clear</button>
+        </>
+      )}
+      {asking && (
+        <>
+          <input
+            type="text"
+            placeholder="Merged folder name"
+            value={name}
+            autoFocus
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && name.trim()) void doMerge();
+              if (e.key === "Escape") setAsking(false);
+            }}
+          />
+          <button className="primary" disabled={!name.trim()} onClick={doMerge}>
+            Merge
+          </button>
+          <button onClick={() => setAsking(false)}>Cancel</button>
+        </>
+      )}
+      {error && <span className="error">{error}</span>}
+    </div>
+  );
+}
+
+function JobRow({
+  job,
+  onChanged,
+  selected,
+  onSelect,
+}: {
+  job: Job;
+  onChanged: () => void;
+  selected?: boolean;
+  onSelect?: (checked: boolean) => void;
+}) {
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
@@ -190,6 +269,14 @@ function JobRow({ job, onChanged }: { job: Job; onChanged: () => void }) {
   return (
     <div className="job">
       <div className="url" title={job.url}>
+        {onSelect && (
+          <input
+            type="checkbox"
+            checked={selected ?? false}
+            onChange={(e) => onSelect(e.target.checked)}
+            title="Select for merge"
+          />
+        )}{" "}
         {job.url}
       </div>
       <div className="actions">
@@ -256,6 +343,7 @@ export default function App() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const [view, setView] = useState<"queue" | "keys" | "settings">("queue");
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [wsDown, setWsDown] = useState(false);
   const refreshTimer = useRef<number | null>(null);
 
@@ -385,10 +473,32 @@ export default function App() {
             ))}
           </div>
 
+          {selectedIds.length >= 2 && (
+            <MergeBar
+              jobs={jobs}
+              selected={selectedIds}
+              onDone={scheduleRefresh}
+              onClear={() => setSelectedIds([])}
+            />
+          )}
+
           <div className="joblist">
             {visible.length === 0 && <div className="empty">No downloads</div>}
             {visible.map((job) => (
-              <JobRow key={job.id} job={job} onChanged={scheduleRefresh} />
+              <JobRow
+                key={job.id}
+                job={job}
+                onChanged={scheduleRefresh}
+                selected={selectedIds.includes(job.id)}
+                onSelect={
+                  job.state === "done" && job.dir_name
+                    ? (checked) =>
+                        setSelectedIds((prev) =>
+                          checked ? [...prev, job.id] : prev.filter((i) => i !== job.id),
+                        )
+                    : undefined
+                }
+              />
             ))}
           </div>
 

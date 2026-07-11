@@ -20,7 +20,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from . import __version__
 from .auth import require_admin, require_submit
@@ -36,7 +36,7 @@ from .models import (
     utcnow,
 )
 from .ssrf import SSRFError, check_url
-from .worker import cleanup_staging, rename_dir
+from .worker import cleanup_staging, merge_dirs, rename_dir
 
 log = logging.getLogger(__name__)
 
@@ -185,6 +185,51 @@ async def rename(job_id: int, req: RenameRequest, request: Request,
         await asyncio.to_thread(rename_dir, src, base / name)
         await st.db.update_job(job_id, dir_name=name)
     return await _get_job_or_404(request, job_id)
+
+
+class MergeRequest(BaseModel):
+    job_ids: list[int] = Field(min_length=2, max_length=100)
+    name: str
+
+
+@router.post("/downloads/merge", response_model=list[Job])
+async def merge(req: MergeRequest, request: Request,
+                key: ApiKeyInfo = Depends(require_submit)) -> list[Job]:
+    """Merge the output directories of several completed jobs into one.
+
+    Files from every selected job's directory move into dest/<name> (created
+    if needed; filename collisions get a " (2)" suffix). The original job
+    records stay in history, all pointing at the merged directory.
+    """
+    st = _state(request)
+    name = _validate_dir_name(req.name)
+    if len(set(req.job_ids)) != len(req.job_ids):
+        raise HTTPException(status_code=400, detail="duplicate job ids")
+
+    jobs: list[Job] = []
+    for job_id in req.job_ids:
+        job = await _get_job_or_404(request, job_id)
+        if job.state != JobState.DONE:
+            raise HTTPException(status_code=409, detail=f"job {job_id} is {job.state}, not done")
+        if not job.dir_name:
+            raise HTTPException(status_code=409,
+                                detail=f"job {job_id} has no output directory")
+        jobs.append(job)
+
+    def base(job: Job) -> Path:
+        return st.cfg.downloads.dest / job.dest if job.dest else st.cfg.downloads.dest
+
+    sources = [base(j) / j.dir_name for j in jobs]
+    missing = [str(s) for s in sources if not s.is_dir()]
+    if missing:
+        raise HTTPException(status_code=409,
+                            detail=f"directory no longer exists: {missing[0]}")
+
+    target = base(jobs[0]) / name
+    await asyncio.to_thread(merge_dirs, sources, target)
+    for job in jobs:
+        await st.db.update_job(job.id, dir_name=name, dest=jobs[0].dest)
+    return [await _get_job_or_404(request, j.id) for j in jobs]
 
 
 @router.delete("/downloads/{job_id}", status_code=204)
