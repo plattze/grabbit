@@ -18,6 +18,8 @@ downloads:
   max_per_host: 2
   filename_template: null   # gallery-dl filename template, e.g. "{category}_{filename}.{extension}"
   cookies_file: null        # e.g. /config/cookies.txt (mount read-only)
+  keep_dirs: true           # keep the source's folder names (album/gallery) as
+                            # subdirectories under dest; false = flatten into dest
 
 engine:
   name: gallery-dl

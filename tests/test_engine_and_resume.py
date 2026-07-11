@@ -31,7 +31,28 @@ async def test_download_reports_progress(mock_engine_binary, tmp_path):
         on_progress=events.append)
     assert result.success and result.files_done == 3
     assert [e.files_done for e in events] == [1, 2, 3]
-    assert len(list((tmp_path / "out").glob("*.jpg"))) == 3
+    assert len(list((tmp_path / "out").rglob("*.jpg"))) == 3
+
+
+async def test_download_flattens_without_keep_dirs(mock_engine_binary, tmp_path):
+    engine = GalleryDLEngine(binary=mock_engine_binary)
+    out = tmp_path / "out"
+    result = await engine.download(
+        "https://example.com/a", EngineOpts(dest=out, keep_dirs=False),
+        on_progress=lambda e: None)
+    assert result.success
+    assert len(list(out.glob("*.jpg"))) == 3  # directly in dest, no subdir
+
+
+async def test_download_keeps_source_directory(mock_engine_binary, tmp_path):
+    engine = GalleryDLEngine(binary=mock_engine_binary)
+    out = tmp_path / "out"
+    result = await engine.download(
+        "https://example.com/a", EngineOpts(dest=out),
+        on_progress=lambda e: None)
+    assert result.success
+    assert not list(out.glob("*.jpg"))  # nothing flattened into dest itself
+    assert len(list((out / "album").glob("*.jpg"))) == 3
 
 
 async def test_download_failure_captures_stderr(mock_engine_binary, tmp_path):

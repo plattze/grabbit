@@ -28,6 +28,9 @@ class DownloadsConfig(BaseModel):
     max_per_host: int = 2
     filename_template: str | None = None
     cookies_file: Path | None = None
+    # Preserve the source's directory structure (album/gallery names) under
+    # dest instead of flattening every file into it.
+    keep_dirs: bool = True
 
 
 class EngineConfig(BaseModel):
@@ -85,6 +88,7 @@ _ENV_OVERRIDES: dict[str, tuple[str, ...]] = {
     "GRABBIT_PUBLIC_URL": ("server", "public_url"),
     "GRABBIT_DEST": ("downloads", "dest"),
     "GRABBIT_INCOMPLETE_DIR": ("downloads", "incomplete_dir"),
+    "GRABBIT_KEEP_DIRS": ("downloads", "keep_dirs"),
     "GRABBIT_DATA_DIR": ("data_dir",),
     "GRABBIT_ENGINE_CHANNEL": ("engine", "channel"),
     "GRABBIT_LOG_LEVEL": ("logging", "level"),

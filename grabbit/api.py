@@ -214,6 +214,7 @@ async def settings(request: Request, key: ApiKeyInfo = Depends(require_admin)) -
                 "max_concurrent": cfg.downloads.max_concurrent,
                 "max_per_host": cfg.downloads.max_per_host,
                 "filename_template": cfg.downloads.filename_template,
+                "keep_dirs": cfg.downloads.keep_dirs,
                 "cookies_file":
                     str(cfg.downloads.cookies_file) if cfg.downloads.cookies_file else None,
             },

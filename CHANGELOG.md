@@ -4,6 +4,15 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Downloads now keep the source's directory names (album/gallery structure)
+  as subdirectories under `dest` instead of flattening every file into it.
+  On by default — including for existing installs; restore the old flat
+  layout with `downloads.keep_dirs: false` or `GRABBIT_KEEP_DIRS=false`.
+  The preserved structure survives the `incomplete/` → complete staging move.
+
 ## [0.2.0] - 2026-07-11
 
 ### Added

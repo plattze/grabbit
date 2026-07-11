@@ -24,6 +24,7 @@ all defaults.
 | `max_per_host` | `2` | Simultaneous jobs per host (politeness). |
 | `filename_template` | `null` | gallery-dl filename template. |
 | `cookies_file` | `null` | Netscape cookies file for authed sites, e.g. `/config/cookies.txt` (mount read-only). |
+| `keep_dirs` | `true` | Keep the source's folder names (album/gallery) as subdirectories under `dest`. `false` = flatten every file directly into `dest` (the pre-0.2.1 behavior). Env: `GRABBIT_KEEP_DIRS`. |
 
 ## engine
 

@@ -29,6 +29,10 @@ if "--dump-json" in args:
 dest = "."
 if "--directory" in args:
     dest = args[args.index("--directory") + 1]
+elif "--destination" in args:
+    # Like real gallery-dl: --destination keeps the extractor's directory
+    # structure under the target, --directory flattens into it exactly.
+    dest = os.path.join(args[args.index("--destination") + 1], "album")
 os.makedirs(dest, exist_ok=True)
 
 if "fail" in url:

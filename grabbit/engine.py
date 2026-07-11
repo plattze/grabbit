@@ -34,6 +34,7 @@ class EngineOpts:
     rate_limit: str | None = None
     filename_template: str | None = None
     cookies_file: Path | None = None
+    keep_dirs: bool = True
     extra: dict = field(default_factory=dict)
 
 
@@ -103,7 +104,11 @@ class GalleryDLEngine:
         return files
 
     def _build_args(self, url: str, opts: EngineOpts) -> list[str]:
-        args = [self.binary, "--directory", str(opts.dest), "--retries", str(opts.retries)]
+        # --destination keeps the extractor's directory structure (album/gallery
+        # names) under dest; --directory is gallery-dl's "exact location" flag,
+        # which flattens everything into dest.
+        dest_flag = "--destination" if opts.keep_dirs else "--directory"
+        args = [self.binary, dest_flag, str(opts.dest), "--retries", str(opts.retries)]
         if opts.rate_limit:
             args += ["--limit-rate", opts.rate_limit]
         if opts.cookies_file:

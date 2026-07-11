@@ -89,7 +89,8 @@ async def test_done_job_lands_in_dest(staged_app, staged_client, key, staged_cfg
     await _wait_state(staged_client, key, job_id, ("done",))
 
     final = staged_cfg.downloads.dest / "albums"
-    assert len(list(final.glob("*.jpg"))) == 3
+    # keep_dirs: the source's directory name survives the staging move
+    assert len(list((final / "album").glob("*.jpg"))) == 3
     # staging cleaned up
     assert not (staged_cfg.downloads.incomplete_dir / f"job-{job_id}").exists()
 
@@ -103,9 +104,9 @@ async def test_active_job_writes_to_staging_not_dest(staged_app, staged_client,
 
     # While active: files appear in staging, dest stays clean
     async with asyncio.timeout(10):
-        while not list(stage.glob("*.jpg")) if stage.exists() else True:
+        while not list(stage.rglob("*.jpg")) if stage.exists() else True:
             await asyncio.sleep(0.05)
-    assert not list(staged_cfg.downloads.dest.glob("*.jpg"))
+    assert not list(staged_cfg.downloads.dest.rglob("*.jpg"))
 
     # Cancel; staged partials are removed
     await staged_client.delete(f"/api/downloads/{job_id}", headers=auth(key))
@@ -113,7 +114,7 @@ async def test_active_job_writes_to_staging_not_dest(staged_app, staged_client,
     async with asyncio.timeout(5):
         while stage.exists():
             await asyncio.sleep(0.05)
-    assert not list(staged_cfg.downloads.dest.glob("*.jpg"))
+    assert not list(staged_cfg.downloads.dest.rglob("*.jpg"))
 
 
 def test_cleanup_staging_noop_when_disabled(cfg):

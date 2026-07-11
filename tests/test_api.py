@@ -100,8 +100,10 @@ async def test_submit_download_completes(client, submit_key, cfg):
 
     job = await wait_for_state(client, submit_key, result["job_id"], "done")
     assert job["files_done"] == 3
-    files = list(cfg.downloads.dest.glob("*.jpg"))
+    files = list(cfg.downloads.dest.rglob("*.jpg"))
     assert len(files) == 3
+    # keep_dirs default: files live under the source's directory name
+    assert all(f.parent != cfg.downloads.dest for f in files)
 
 
 async def test_duplicate_submit_is_idempotent(client, submit_key):
