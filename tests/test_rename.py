@@ -71,6 +71,56 @@ async def test_rename_merges_into_existing_directory(client, submit_key, cfg):
     assert len(list(merged.glob("*.jpg"))) == 3
 
 
+async def test_rename_flat_job_gathers_files_into_directory(tmp_path, mock_engine_binary,
+                                                            monkeypatch):
+    """keep_dirs: false — files land flat in dest root (dir_name ''); rename
+    must still work by gathering the job's recorded files into a directory."""
+    import sys
+
+    from httpx import ASGITransport, AsyncClient
+
+    from grabbit.app import create_app
+    from grabbit.config import Config
+    from grabbit.engine import GalleryDLEngine
+    from grabbit.models import KeyScope
+
+    dl = tmp_path / "downloads"
+    dl.mkdir()
+    cfg = Config.model_validate({
+        "data_dir": str(tmp_path / "config"),
+        "downloads": {"dest": str(dl), "keep_dirs": False,
+                      "max_concurrent": 2, "max_per_host": 1},
+        "logging": {"enabled": False},
+    })
+    monkeypatch.setitem(sys.modules, "gallery_dl", None)
+    app = create_app(cfg, engine=GalleryDLEngine(binary=mock_engine_binary))
+    async with app.router.lifespan_context(app):
+        key = (await app.state.db.create_key("t", KeyScope.SUBMIT)).token
+        async with AsyncClient(transport=ASGITransport(app=app),
+                               base_url="http://test") as client:
+            job_id = await _submit(client, key)
+            job = await wait_for_state(client, key, job_id, "done")
+            assert job["dir_name"] == ""  # flat: no output directory detected
+            assert len(list(dl.glob("*.jpg"))) == 3
+
+            r = await client.post(f"/api/downloads/{job_id}/rename",
+                                  json={"name": "Gathered"}, headers=auth(key))
+            assert r.status_code == 200
+            assert r.json()["dir_name"] == "Gathered"
+            assert not list(dl.glob("*.jpg"))
+            assert len(list((dl / "Gathered").glob("*.jpg"))) == 3
+
+
+async def test_rename_flat_job_without_recorded_files_409(client, submit_key, app):
+    """A legacy done job (no dir_name, no recorded files) still 409s."""
+    job_id = await _submit(client, submit_key)
+    await wait_for_state(client, submit_key, job_id, "done")
+    await app.state.db.update_job(job_id, dir_name="", file_paths="[]")
+    r = await client.post(f"/api/downloads/{job_id}/rename",
+                          json={"name": "x"}, headers=auth(submit_key))
+    assert r.status_code == 409
+
+
 async def test_rename_rejects_path_traversal(client, submit_key):
     job_id = await _submit(client, submit_key)
     await wait_for_state(client, submit_key, job_id, "done")

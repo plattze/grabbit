@@ -4,6 +4,17 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- Renaming a completed download now works when the job has no detected output
+  directory — files that landed flat in the destination root (`keep_dirs:
+  false`, single-file downloads) are gathered into the requested directory.
+  Each job now records its downloaded file paths at completion to make this
+  possible; jobs finished before this release (no recorded files, no
+  directory) still return 409. The web UI shows the Rename button on all
+  non-cancelled jobs accordingly.
+
 ## [0.2.3] - 2026-07-11
 
 ### Added

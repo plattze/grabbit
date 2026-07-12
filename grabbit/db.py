@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import secrets
 from datetime import datetime
 from pathlib import Path
@@ -27,7 +28,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     updated_at TEXT NOT NULL,
     finished_at TEXT,
     dir_name TEXT NOT NULL DEFAULT '',
-    rename_to TEXT
+    rename_to TEXT,
+    file_paths TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs(state);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_url_open ON jobs(url)
@@ -92,6 +94,9 @@ class Database:
                 "ALTER TABLE jobs ADD COLUMN dir_name TEXT NOT NULL DEFAULT ''")
         if "rename_to" not in cols:
             await self.conn.execute("ALTER TABLE jobs ADD COLUMN rename_to TEXT")
+        if "file_paths" not in cols:
+            await self.conn.execute(
+                "ALTER TABLE jobs ADD COLUMN file_paths TEXT NOT NULL DEFAULT '[]'")
 
     async def close(self) -> None:
         if self._conn:
@@ -150,6 +155,20 @@ class Database:
         finished = utcnow().isoformat() if state in (
             JobState.DONE, JobState.ERROR, JobState.CANCELLED) else None
         await self.update_job(job_id, state=state.value, error=error, finished_at=finished)
+
+    async def set_job_files(self, job_id: int, rel_paths: list[str]) -> None:
+        """Record a job's downloaded files (paths relative to its dest base).
+
+        Written at completion; read only when dir_name is '' (files landed
+        flat) to let a rename gather them into a directory after the fact.
+        """
+        await self.update_job(job_id, file_paths=json.dumps(rel_paths))
+
+    async def get_job_files(self, job_id: int) -> list[str]:
+        cur = await self.conn.execute(
+            "SELECT file_paths FROM jobs WHERE id = ?", (job_id,))
+        row = await cur.fetchone()
+        return json.loads(row["file_paths"]) if row else []
 
     async def requeue_interrupted(self) -> int:
         """On startup: put jobs that were active when we died back in the queue."""

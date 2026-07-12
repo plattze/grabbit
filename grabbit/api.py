@@ -36,7 +36,7 @@ from .models import (
     utcnow,
 )
 from .ssrf import SSRFError, check_url
-from .worker import cleanup_staging, merge_dirs, rename_dir
+from .worker import cleanup_staging, gather_into_dir, merge_dirs, rename_dir
 
 log = logging.getLogger(__name__)
 
@@ -174,10 +174,19 @@ async def rename(job_id: int, req: RenameRequest, request: Request,
         await st.db.update_job(job_id, rename_to=name)
         return await _get_job_or_404(request, job_id)
 
+    base = st.cfg.downloads.dest / job.dest if job.dest else st.cfg.downloads.dest
     if not job.dir_name:
-        raise HTTPException(status_code=409, detail="job has no output directory to rename")
-    if name != job.dir_name:
-        base = st.cfg.downloads.dest / job.dest if job.dest else st.cfg.downloads.dest
+        # Files landed flat in the destination root (keep_dirs off, single
+        # files, or a pre-0.2.2 job): gather the job's recorded files into
+        # the requested directory instead of renaming one.
+        rel_files = await st.db.get_job_files(job_id)
+        existing = [rel for rel in rel_files if (base / rel).is_file()]
+        if not existing:
+            raise HTTPException(status_code=409,
+                                detail="job has no output directory to rename")
+        await asyncio.to_thread(gather_into_dir, base, existing, base / name)
+        await st.db.update_job(job_id, dir_name=name)
+    elif name != job.dir_name:
         src = base / job.dir_name
         if not src.is_dir():
             raise HTTPException(status_code=409,

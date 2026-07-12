@@ -249,7 +249,7 @@ function JobRow({
     }
     onChanged();
   };
-  const canRename = job.state !== "cancelled" && (job.state !== "done" || job.dir_name !== "");
+  const canRename = job.state !== "cancelled";
   const startRename = () => {
     setNewName(job.rename_to ?? job.dir_name);
     setRenameError(null);

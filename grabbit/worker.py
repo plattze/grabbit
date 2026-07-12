@@ -56,6 +56,28 @@ def rename_dir(src: Path, dst: Path) -> None:
             shutil.move(str(src), str(dst))
 
 
+def gather_into_dir(base: Path, rel_paths: list[str], dst: Path) -> None:
+    """Move loose files (paths relative to base) into dst.
+
+    Renames a job that has no output directory (files landed flat in the
+    destination root) by collecting its recorded files into one.
+    """
+    dst.mkdir(parents=True, exist_ok=True)
+    for rel in rel_paths:
+        parts = Path(rel).parts
+        if not parts or ".." in parts or Path(rel).is_absolute():
+            continue
+        src = base / rel
+        if not src.is_file():
+            continue
+        target = dst / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            os.replace(src, target)
+        except OSError:
+            shutil.move(str(src), str(target))
+
+
 def merge_dirs(sources: list[Path], dst: Path) -> None:
     """Move files from each source dir into dst.
 
@@ -179,6 +201,7 @@ class WorkerPool:
             stage = staging_dir(self.cfg, job_id)
             job_root = stage or final_dest
             seen_dir = ""
+            rel_files: list[str] = []
 
             def on_progress(ev: ProgressEvent) -> None:
                 nonlocal seen_dir
@@ -186,6 +209,9 @@ class WorkerPool:
                 if top and top != seen_dir:
                     seen_dir = top
                     loop.create_task(self.db.update_job(job_id, dir_name=top))
+                if ev.current_file:
+                    with contextlib.suppress(ValueError):
+                        rel_files.append(str(Path(ev.current_file).relative_to(job_root)))
                 loop.create_task(self._on_progress(job_id, ev))
 
             opts = EngineOpts(
@@ -211,6 +237,7 @@ class WorkerPool:
             if result.success:
                 if stage and stage.is_dir():
                     await asyncio.to_thread(_move_tree, stage, final_dest)
+                await self.db.set_job_files(job_id, rel_files)
                 await self._apply_pending_rename(job_id, final_dest)
                 await self.db.update_job(job_id, files_done=result.files_done,
                                          files_total=result.files_done)
@@ -246,6 +273,16 @@ class WorkerPool:
             await asyncio.to_thread(rename_dir, src, final_dest / job.rename_to)
             await self.db.update_job(job_id, dir_name=job.rename_to, rename_to=None)
             log.info("job %d renamed dir %r -> %r", job_id, job.dir_name, job.rename_to)
+            return
+        # No output directory (files landed flat in dest): gather the job's
+        # recorded files into the requested directory instead.
+        rel_files = await self.db.get_job_files(job_id)
+        if rel_files:
+            await asyncio.to_thread(
+                gather_into_dir, final_dest, rel_files, final_dest / job.rename_to)
+            await self.db.update_job(job_id, dir_name=job.rename_to, rename_to=None)
+            log.info("job %d gathered %d file(s) into %r",
+                     job_id, len(rel_files), job.rename_to)
         else:
             await self.db.update_job(job_id, rename_to=None)
             log.warning("job %d rename skipped: no directory %r", job_id, job.dir_name)
