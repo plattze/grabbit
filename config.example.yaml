@@ -20,6 +20,7 @@ downloads:
   cookies_file: null        # e.g. /config/cookies.txt (mount read-only)
   keep_dirs: true           # keep the source's folder names (album/gallery) as
                             # subdirectories under dest; false = flatten into dest
+  pin_recheck_minutes: 60   # how often pinned jobs re-check their source for new files
 
 engine:
   name: gallery-dl

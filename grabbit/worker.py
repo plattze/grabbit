@@ -8,6 +8,7 @@ import logging
 import os
 import shutil
 from collections import defaultdict
+from datetime import timedelta
 from pathlib import Path
 
 from .config import Config
@@ -15,7 +16,7 @@ from .db import Database
 from .engine import Engine, EngineOpts, ProgressEvent
 from .events import EventHub
 from .logging_setup import redact_url
-from .models import JobState
+from .models import JobState, utcnow
 
 log = logging.getLogger(__name__)
 
@@ -136,16 +137,22 @@ class WorkerPool:
         self._running: dict[int, asyncio.Task] = {}
         self._stopped = False
         self._loop_task: asyncio.Task | None = None
+        self._pin_task: asyncio.Task | None = None
 
     async def start(self) -> None:
         requeued = await self.db.requeue_interrupted()
         if requeued:
             log.info("requeued %d interrupted job(s)", requeued)
         self._loop_task = asyncio.create_task(self._dispatch_loop())
+        self._pin_task = asyncio.create_task(self._pin_loop())
 
     async def stop(self) -> None:
         self._stopped = True
         self._wakeup.set()
+        if self._pin_task:
+            self._pin_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._pin_task
         if self._loop_task:
             await self._loop_task
         for task in list(self._running.values()):
@@ -161,6 +168,34 @@ class WorkerPool:
         """Kill a running engine process for this job, if any."""
         cancel = getattr(self.engine, "cancel", None)
         return bool(cancel and cancel(job_id))
+
+    async def _pin_loop(self) -> None:
+        """Requeue pinned jobs whose last run is older than the recheck interval.
+
+        A recheck is a normal queued run — it flows through the same dispatch
+        loop (global + per-host semaphores), and the engine's skip-existing
+        behavior means only files added at the source since the last run are
+        downloaded.
+        """
+        interval = self.cfg.downloads.pin_recheck_minutes * 60.0
+        poll = min(60.0, max(interval / 4, 0.05))
+        while not self._stopped:
+            await asyncio.sleep(poll)
+            try:
+                cutoff = (utcnow() - timedelta(seconds=interval)).isoformat()
+                for job in await self.db.list_pinned_due(cutoff):
+                    # Preserve a renamed directory: record it as a pending
+                    # rename so the recheck's freshly detected directory is
+                    # merged back into it at completion.
+                    await self.db.update_job(
+                        job.id, state=JobState.QUEUED.value, error=None,
+                        finished_at=None, rename_to=job.dir_name or None)
+                    self._publish(job.id, JobState.QUEUED)
+                    log.info("pinned job %d recheck queued: %s",
+                             job.id, redact_url(job.url))
+                    self.notify()
+            except Exception:
+                log.exception("pin recheck loop error")
 
     async def _dispatch_loop(self) -> None:
         while not self._stopped:

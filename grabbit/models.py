@@ -36,6 +36,9 @@ class Job(BaseModel):
     dir_name: str = ""
     # Rename requested while the job was still running; applied at completion.
     rename_to: str | None = None
+    # Pinned: the source is re-checked forever for new files (worker requeues
+    # the job every downloads.pin_recheck_minutes after it finishes).
+    pinned: bool = False
 
 
 class SubmitRequest(BaseModel):

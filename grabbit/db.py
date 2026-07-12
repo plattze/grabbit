@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     finished_at TEXT,
     dir_name TEXT NOT NULL DEFAULT '',
     rename_to TEXT,
-    file_paths TEXT NOT NULL DEFAULT '[]'
+    file_paths TEXT NOT NULL DEFAULT '[]',
+    pinned INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs(state);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_url_open ON jobs(url)
@@ -62,6 +63,7 @@ def _row_to_job(row: aiosqlite.Row) -> Job:
         updated_at=datetime.fromisoformat(row["updated_at"]),
         finished_at=datetime.fromisoformat(row["finished_at"]) if row["finished_at"] else None,
         dir_name=row["dir_name"], rename_to=row["rename_to"],
+        pinned=bool(row["pinned"]),
     )
 
 
@@ -97,6 +99,9 @@ class Database:
         if "file_paths" not in cols:
             await self.conn.execute(
                 "ALTER TABLE jobs ADD COLUMN file_paths TEXT NOT NULL DEFAULT '[]'")
+        if "pinned" not in cols:
+            await self.conn.execute(
+                "ALTER TABLE jobs ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
 
     async def close(self) -> None:
         if self._conn:
@@ -136,12 +141,14 @@ class Database:
                         limit: int = 100, offset: int = 0) -> list[Job]:
         if state:
             cur = await self.conn.execute(
-                "SELECT * FROM jobs WHERE state = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+                "SELECT * FROM jobs WHERE state = ?"
+                " ORDER BY pinned DESC, id DESC LIMIT ? OFFSET ?",
                 (state.value, limit, offset),
             )
         else:
             cur = await self.conn.execute(
-                "SELECT * FROM jobs ORDER BY id DESC LIMIT ? OFFSET ?", (limit, offset))
+                "SELECT * FROM jobs ORDER BY pinned DESC, id DESC LIMIT ? OFFSET ?",
+                (limit, offset))
         return [_row_to_job(r) for r in await cur.fetchall()]
 
     async def update_job(self, job_id: int, **fields) -> None:
@@ -169,6 +176,15 @@ class Database:
             "SELECT file_paths FROM jobs WHERE id = ?", (job_id,))
         row = await cur.fetchone()
         return json.loads(row["file_paths"]) if row else []
+
+    async def list_pinned_due(self, cutoff_iso: str) -> list[Job]:
+        """Pinned jobs at rest whose last run finished at or before the cutoff."""
+        cur = await self.conn.execute(
+            "SELECT * FROM jobs WHERE pinned = 1 AND state IN (?, ?)"
+            " AND finished_at IS NOT NULL AND finished_at <= ?",
+            (JobState.DONE.value, JobState.ERROR.value, cutoff_iso),
+        )
+        return [_row_to_job(r) for r in await cur.fetchall()]
 
     async def requeue_interrupted(self) -> int:
         """On startup: put jobs that were active when we died back in the queue."""

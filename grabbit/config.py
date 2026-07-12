@@ -31,6 +31,8 @@ class DownloadsConfig(BaseModel):
     # Preserve the source's directory structure (album/gallery names) under
     # dest instead of flattening every file into it.
     keep_dirs: bool = True
+    # How often pinned jobs re-check their source for new files (minutes).
+    pin_recheck_minutes: float = 60
 
 
 class EngineConfig(BaseModel):
@@ -89,6 +91,7 @@ _ENV_OVERRIDES: dict[str, tuple[str, ...]] = {
     "GRABBIT_DEST": ("downloads", "dest"),
     "GRABBIT_INCOMPLETE_DIR": ("downloads", "incomplete_dir"),
     "GRABBIT_KEEP_DIRS": ("downloads", "keep_dirs"),
+    "GRABBIT_PIN_RECHECK_MINUTES": ("downloads", "pin_recheck_minutes"),
     "GRABBIT_DATA_DIR": ("data_dir",),
     "GRABBIT_ENGINE_CHANNEL": ("engine", "channel"),
     "GRABBIT_LOG_LEVEL": ("logging", "level"),

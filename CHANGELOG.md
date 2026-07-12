@@ -4,6 +4,19 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Pin a download to keep watching its source (new
+  `POST /api/downloads/{id}/pin` and a Pin/Unpin button per job). A pinned
+  job is re-queued every `downloads.pin_recheck_minutes` (default 60,
+  env `GRABBIT_PIN_RECHECK_MINUTES`) after it finishes; the engine's
+  skip-existing behavior means only files added at the source since the last
+  run are downloaded. Rechecks respect the normal concurrency and per-host
+  limits, land new files in the job's current (possibly renamed) directory,
+  and pinned jobs sort to the top of the downloads list. Unpin to stop
+  monitoring.
+
 ## [0.2.4] - 2026-07-12
 
 ### Fixed

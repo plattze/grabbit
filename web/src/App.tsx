@@ -290,6 +290,18 @@ function JobRow({
           <button onClick={() => act(() => api.retry(job.id))}>Retry</button>
         )}
         {canRename && !renaming && <button onClick={startRename}>Rename</button>}
+        {job.state !== "cancelled" && (
+          <button
+            onClick={() => act(() => api.pin(job.id, !job.pinned))}
+            title={
+              job.pinned
+                ? "Unpin — stop watching the source"
+                : "Pin — keep watching the source and download new files"
+            }
+          >
+            {job.pinned ? "Unpin" : "Pin"}
+          </button>
+        )}
         <button onClick={() => act(() => api.remove(job.id))}>
           {["queued", "active", "paused"].includes(job.state) ? "Cancel" : "Remove"}
         </button>
@@ -316,6 +328,7 @@ function JobRow({
       {renameError && <div className="error">{renameError}</div>}
       <div className="meta">
         <span className={`badge ${job.state}`}>{job.state}</span>
+        {job.pinned && <span title="Pinned — source is monitored for new files">📌 pinned</span>}
         <span>{job.host}</span>
         {job.dir_name && <span title="Output directory">📁 {job.dir_name}</span>}
         {job.rename_to && <span>→ {job.rename_to} (on completion)</span>}

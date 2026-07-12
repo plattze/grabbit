@@ -146,6 +146,29 @@ async def retry(job_id: int, request: Request,
     return await _get_job_or_404(request, job_id)
 
 
+class PinRequest(BaseModel):
+    pinned: bool
+
+
+@router.post("/downloads/{job_id}/pin", response_model=Job)
+async def pin(job_id: int, req: PinRequest, request: Request,
+              key: ApiKeyInfo = Depends(require_submit)) -> Job:
+    """Pin or unpin a job.
+
+    A pinned job's source URL is re-checked forever: after each run finishes,
+    the worker requeues it every downloads.pin_recheck_minutes, and the
+    engine's skip-existing behavior downloads only files added since.
+    Unpinning stops the monitoring; the job simply rests in its final state.
+    """
+    st = _state(request)
+    job = await _get_job_or_404(request, job_id)
+    if req.pinned and job.state == JobState.CANCELLED:
+        raise HTTPException(status_code=409, detail="cannot pin a cancelled job")
+    await st.db.update_job(job_id, pinned=int(req.pinned))
+    st.hub.publish({"type": "state", "job_id": job_id, "state": job.state.value})
+    return await _get_job_or_404(request, job_id)
+
+
 class RenameRequest(BaseModel):
     name: str
 
@@ -310,6 +333,7 @@ async def settings(request: Request, key: ApiKeyInfo = Depends(require_admin)) -
                 "max_per_host": cfg.downloads.max_per_host,
                 "filename_template": cfg.downloads.filename_template,
                 "keep_dirs": cfg.downloads.keep_dirs,
+                "pin_recheck_minutes": cfg.downloads.pin_recheck_minutes,
                 "cookies_file":
                     str(cfg.downloads.cookies_file) if cfg.downloads.cookies_file else None,
             },

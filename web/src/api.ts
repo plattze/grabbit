@@ -17,6 +17,7 @@ export interface Job {
   finished_at: string | null;
   dir_name: string;
   rename_to: string | null;
+  pinned: boolean;
 }
 
 export interface SubmitResult {
@@ -103,6 +104,8 @@ export const api = {
   pause: (id: number) => request<Job>(`downloads/${id}/pause`, { method: "POST" }),
   resume: (id: number) => request<Job>(`downloads/${id}/resume`, { method: "POST" }),
   retry: (id: number) => request<Job>(`downloads/${id}/retry`, { method: "POST" }),
+  pin: (id: number, pinned: boolean) =>
+    request<Job>(`downloads/${id}/pin`, { method: "POST", body: JSON.stringify({ pinned }) }),
   rename: (id: number, name: string) =>
     request<Job>(`downloads/${id}/rename`, { method: "POST", body: JSON.stringify({ name }) }),
   merge: (jobIds: number[], name: string) =>
