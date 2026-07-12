@@ -256,6 +256,7 @@ class WorkerPool:
                 filename_template=self.cfg.downloads.filename_template,
                 cookies_file=self.cfg.downloads.cookies_file,
                 keep_dirs=self.cfg.downloads.keep_dirs,
+                reset_mtime=self.cfg.downloads.reset_mtime,
             )
             result = await self.engine.download(url, opts, on_progress, job_id=job_id)
 

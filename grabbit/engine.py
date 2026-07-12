@@ -35,6 +35,9 @@ class EngineOpts:
     filename_template: str | None = None
     cookies_file: Path | None = None
     keep_dirs: bool = True
+    # Keep the download time as the files' mtime instead of letting the
+    # engine restore the source's original timestamp from metadata.
+    reset_mtime: bool = False
     extra: dict = field(default_factory=dict)
 
 
@@ -115,6 +118,11 @@ class GalleryDLEngine:
             args += ["--cookies", str(opts.cookies_file)]
         if opts.filename_template:
             args += ["-o", f"filename={opts.filename_template}"]
+        if opts.reset_mtime:
+            # Disable gallery-dl's mtime-from-metadata handling; files then
+            # keep their write time (= download time), which the staging
+            # move preserves into dest.
+            args += ["-o", "mtime=false"]
         args += ["--no-colors", url]
         return args
 

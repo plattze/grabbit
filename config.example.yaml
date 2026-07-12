@@ -21,6 +21,9 @@ downloads:
   keep_dirs: true           # keep the source's folder names (album/gallery) as
                             # subdirectories under dest; false = flatten into dest
   pin_recheck_minutes: 60   # how often pinned jobs re-check their source for new files
+  reset_mtime: false        # true = stamp files with the download time instead of the
+                            # source's original timestamp (so sorting by date modified
+                            # shows what's new)
 
 engine:
   name: gallery-dl

@@ -119,3 +119,34 @@ async def test_active_job_writes_to_staging_not_dest(staged_app, staged_client,
 
 def test_cleanup_staging_noop_when_disabled(cfg):
     cleanup_staging(cfg, 42)  # must not raise
+
+
+async def test_reset_mtime_survives_staging_move(tmp_path, mock_engine_binary,
+                                                 monkeypatch):
+    """downloads.reset_mtime applies to the final files in dest — the
+    incomplete/ → complete move preserves the download-time timestamps."""
+    dl = tmp_path / "downloads"
+    dl.mkdir()
+    cfg = Config.model_validate({
+        "data_dir": str(tmp_path / "config"),
+        "downloads": {
+            "dest": str(dl),
+            "incomplete_dir": str(tmp_path / "incomplete"),
+            "reset_mtime": True,
+            "max_concurrent": 2, "max_per_host": 1,
+        },
+        "logging": {"enabled": False},
+    })
+    monkeypatch.setitem(sys.modules, "gallery_dl", None)
+    app = create_app(cfg, engine=GalleryDLEngine(binary=mock_engine_binary))
+    async with app.router.lifespan_context(app):
+        key = (await app.state.db.create_key("t", KeyScope.SUBMIT)).token
+        async with AsyncClient(transport=ASGITransport(app=app),
+                               base_url="http://test") as client:
+            r = await client.post("/api/downloads", headers=auth(key),
+                                  json={"urls": ["https://example.com/album"]})
+            job_id = r.json()[0]["job_id"]
+            await _wait_state(client, key, job_id, ("done",))
+    files = list(dl.rglob("*.jpg"))
+    # Mock CLI backdates to mtime 1000000000 unless mtime=false is passed.
+    assert files and all(f.stat().st_mtime > 1000000000 for f in files)

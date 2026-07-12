@@ -4,6 +4,17 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Optional `downloads.reset_mtime` (env `GRABBIT_RESET_MTIME`, default
+  `false`): stamp downloaded files with the download time instead of the
+  source's original timestamp, so sorting by date modified in a file manager
+  surfaces what's new. Implemented by disabling the engine's
+  mtime-from-metadata handling; the reset timestamps survive the
+  `incomplete/` → complete staging move. Off by default — files keep the
+  source's original timestamps as before.
+
 ## [0.2.5] - 2026-07-12
 
 ### Added

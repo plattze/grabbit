@@ -44,6 +44,10 @@ for i in range(n):
     p = os.path.join(dest, f"file{i}.jpg")
     with open(p, "w") as f:
         f.write("x" * 100)
+    if "mtime=false" not in args:
+        # Like real gallery-dl: restore the source's original timestamp
+        # from metadata unless mtime handling is disabled.
+        os.utime(p, (1000000000, 1000000000))
     print(p, flush=True)
     if "slow" in url:
         time.sleep(0.5)

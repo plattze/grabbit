@@ -334,6 +334,7 @@ async def settings(request: Request, key: ApiKeyInfo = Depends(require_admin)) -
                 "filename_template": cfg.downloads.filename_template,
                 "keep_dirs": cfg.downloads.keep_dirs,
                 "pin_recheck_minutes": cfg.downloads.pin_recheck_minutes,
+                "reset_mtime": cfg.downloads.reset_mtime,
                 "cookies_file":
                     str(cfg.downloads.cookies_file) if cfg.downloads.cookies_file else None,
             },

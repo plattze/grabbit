@@ -33,6 +33,9 @@ class DownloadsConfig(BaseModel):
     keep_dirs: bool = True
     # How often pinned jobs re-check their source for new files (minutes).
     pin_recheck_minutes: float = 60
+    # Stamp downloaded files with the download time instead of the source's
+    # original timestamp, so "sort by date modified" surfaces new downloads.
+    reset_mtime: bool = False
 
 
 class EngineConfig(BaseModel):
@@ -92,6 +95,7 @@ _ENV_OVERRIDES: dict[str, tuple[str, ...]] = {
     "GRABBIT_INCOMPLETE_DIR": ("downloads", "incomplete_dir"),
     "GRABBIT_KEEP_DIRS": ("downloads", "keep_dirs"),
     "GRABBIT_PIN_RECHECK_MINUTES": ("downloads", "pin_recheck_minutes"),
+    "GRABBIT_RESET_MTIME": ("downloads", "reset_mtime"),
     "GRABBIT_DATA_DIR": ("data_dir",),
     "GRABBIT_ENGINE_CHANNEL": ("engine", "channel"),
     "GRABBIT_LOG_LEVEL": ("logging", "level"),
