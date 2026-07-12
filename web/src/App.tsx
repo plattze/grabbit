@@ -227,6 +227,17 @@ function MergeBar({
   );
 }
 
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function JobRow({
   job,
   onChanged,
@@ -266,87 +277,134 @@ function JobRow({
   };
   const pct =
     job.files_total > 0 ? Math.min(100, (job.files_done / job.files_total) * 100) : null;
+  const hasExtra = renaming || Boolean(renameError) || job.state === "active" || Boolean(job.error);
   return (
-    <div className="job">
-      <div className="url" title={job.url}>
-        {onSelect && (
-          <input
-            type="checkbox"
-            checked={selected ?? false}
-            onChange={(e) => onSelect(e.target.checked)}
-            title="Select for merge"
-          />
-        )}{" "}
-        {job.url}
-      </div>
-      <div className="actions">
-        {(job.state === "queued" || job.state === "active") && (
-          <button onClick={() => act(() => api.pause(job.id))}>Pause</button>
-        )}
-        {job.state === "paused" && (
-          <button onClick={() => act(() => api.resume(job.id))}>Resume</button>
-        )}
-        {(job.state === "error" || job.state === "cancelled") && (
-          <button onClick={() => act(() => api.retry(job.id))}>Retry</button>
-        )}
-        {canRename && !renaming && <button onClick={startRename}>Rename</button>}
-        {job.state !== "cancelled" && (
-          <button
-            onClick={() => act(() => api.pin(job.id, !job.pinned))}
-            title={
-              job.pinned
-                ? "Unpin — stop watching the source"
-                : "Pin — keep watching the source and download new files"
-            }
-          >
-            {job.pinned ? "Unpin" : "Pin"}
+    <>
+      <tr className={hasExtra ? "has-extra" : undefined}>
+        <td className="select">
+          {onSelect && (
+            <input
+              type="checkbox"
+              checked={selected ?? false}
+              onChange={(e) => onSelect(e.target.checked)}
+              title="Select for merge"
+            />
+          )}
+        </td>
+        <td className="url" title={job.url}>
+          {job.pinned && (
+            <span title="Pinned — source is monitored for new files">📌 </span>
+          )}
+          {job.url}
+        </td>
+        <td>{job.host}</td>
+        <td>
+          <span className={`badge ${job.state}`}>{job.state}</span>
+        </td>
+        <td className="num">
+          {job.files_done > 0
+            ? `${job.files_done}${job.files_total > 0 ? ` / ${job.files_total}` : ""}`
+            : "—"}
+        </td>
+        <td className="dir" title={job.dir_name || undefined}>
+          {job.dir_name || "—"}
+          {job.rename_to && <span className="pending-rename"> → {job.rename_to}</span>}
+        </td>
+        <td className="date">{fmtDate(job.created_at)}</td>
+        <td className="date">{fmtDate(job.finished_at)}</td>
+        <td className="actions">
+          {(job.state === "queued" || job.state === "active") && (
+            <button onClick={() => act(() => api.pause(job.id))}>Pause</button>
+          )}
+          {job.state === "paused" && (
+            <button onClick={() => act(() => api.resume(job.id))}>Resume</button>
+          )}
+          {(job.state === "error" || job.state === "cancelled") && (
+            <button onClick={() => act(() => api.retry(job.id))}>Retry</button>
+          )}
+          {canRename && !renaming && <button onClick={startRename}>Rename</button>}
+          {job.state !== "cancelled" && (
+            <button
+              onClick={() => act(() => api.pin(job.id, !job.pinned))}
+              title={
+                job.pinned
+                  ? "Unpin — stop watching the source"
+                  : "Pin — keep watching the source and download new files"
+              }
+            >
+              {job.pinned ? "Unpin" : "Pin"}
+            </button>
+          )}
+          <button onClick={() => act(() => api.remove(job.id))}>
+            {["queued", "active", "paused"].includes(job.state) ? "Cancel" : "Remove"}
           </button>
-        )}
-        <button onClick={() => act(() => api.remove(job.id))}>
-          {["queued", "active", "paused"].includes(job.state) ? "Cancel" : "Remove"}
-        </button>
-      </div>
-      {renaming && (
-        <div className="submit-row">
-          <input
-            type="text"
-            placeholder="Directory name"
-            value={newName}
-            autoFocus
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && newName.trim()) void doRename();
-              if (e.key === "Escape") setRenaming(false);
-            }}
-          />
-          <button className="primary" disabled={!newName.trim()} onClick={doRename}>
-            Rename
-          </button>
-          <button onClick={() => setRenaming(false)}>Cancel</button>
-        </div>
+        </td>
+      </tr>
+      {hasExtra && (
+        <tr className="extra">
+          <td colSpan={9}>
+            {renaming && (
+              <div className="submit-row">
+                <input
+                  type="text"
+                  placeholder="Directory name"
+                  value={newName}
+                  autoFocus
+                  onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && newName.trim()) void doRename();
+                    if (e.key === "Escape") setRenaming(false);
+                  }}
+                />
+                <button className="primary" disabled={!newName.trim()} onClick={doRename}>
+                  Rename
+                </button>
+                <button onClick={() => setRenaming(false)}>Cancel</button>
+              </div>
+            )}
+            {renameError && <div className="error">{renameError}</div>}
+            {job.state === "active" && (
+              <div className="progress">
+                <div style={{ width: pct !== null ? `${pct}%` : "100%" }} />
+              </div>
+            )}
+            {job.error && <div className="error">{job.error}</div>}
+          </td>
+        </tr>
       )}
-      {renameError && <div className="error">{renameError}</div>}
-      <div className="meta">
-        <span className={`badge ${job.state}`}>{job.state}</span>
-        {job.pinned && <span title="Pinned — source is monitored for new files">📌 pinned</span>}
-        <span>{job.host}</span>
-        {job.dir_name && <span title="Output directory">📁 {job.dir_name}</span>}
-        {job.rename_to && <span>→ {job.rename_to} (on completion)</span>}
-        {job.files_done > 0 && (
-          <span>
-            {job.files_done}
-            {job.files_total > 0 ? ` / ${job.files_total}` : ""} files
-          </span>
-        )}
-      </div>
-      {job.state === "active" && (
-        <div className="progress">
-          <div style={{ width: pct !== null ? `${pct}%` : "100%" }} />
-        </div>
-      )}
-      {job.error && <div className="error">{job.error}</div>}
-    </div>
+    </>
   );
+}
+
+type SortKey = "url" | "host" | "state" | "files" | "dir" | "created" | "finished";
+
+const COLUMNS: { key: SortKey; label: string }[] = [
+  { key: "url", label: "URL" },
+  { key: "host", label: "Host" },
+  { key: "state", label: "Status" },
+  { key: "files", label: "Files" },
+  { key: "dir", label: "Directory" },
+  { key: "created", label: "Added" },
+  { key: "finished", label: "Finished" },
+];
+
+function sortValue(job: Job, key: SortKey): string | number {
+  switch (key) {
+    case "url":
+      return job.url.toLowerCase();
+    case "host":
+      return job.host.toLowerCase();
+    case "state":
+      return job.state;
+    case "files":
+      return job.files_done;
+    case "dir":
+      return job.dir_name.toLowerCase();
+    case "created":
+      return job.created_at;
+    case "finished":
+      return job.finished_at ?? "";
+  }
 }
 
 export default function App() {
@@ -358,6 +416,8 @@ export default function App() {
   const [view, setView] = useState<"queue" | "keys" | "settings">("queue");
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [wsDown, setWsDown] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortAsc, setSortAsc] = useState(false);
   const refreshTimer = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
@@ -406,10 +466,30 @@ export default function App() {
     };
   }, [authed, refresh, scheduleRefresh]);
 
-  const visible = useMemo(
-    () => (filter === "all" ? jobs : jobs.filter((j) => j.state === filter)),
-    [jobs, filter],
-  );
+  const visible = useMemo(() => {
+    const filtered = filter === "all" ? jobs : jobs.filter((j) => j.state === filter);
+    // Default order (newest first, pinned on top) comes from the API; column
+    // sorting still keeps pinned jobs first within the chosen order.
+    if (!sortKey) return filtered;
+    return [...filtered].sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      const va = sortValue(a, sortKey);
+      const vb = sortValue(b, sortKey);
+      const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [jobs, filter, sortKey, sortAsc]);
+
+  const clickHeader = (key: SortKey) => {
+    if (sortKey === key) {
+      // second click reverses; third returns to the default order
+      if (!sortAsc) setSortAsc(true);
+      else setSortKey(null);
+    } else {
+      setSortKey(key);
+      setSortAsc(false);
+    }
+  };
 
   if (!authed || authFailed) {
     return (
@@ -484,6 +564,14 @@ export default function App() {
                 {f}
               </button>
             ))}
+            <button
+              className="linkish refresh"
+              style={{ marginLeft: "auto" }}
+              title="Refresh the list"
+              onClick={() => void refresh()}
+            >
+              🔄
+            </button>
           </div>
 
           {selectedIds.length >= 2 && (
@@ -495,25 +583,44 @@ export default function App() {
             />
           )}
 
-          <div className="joblist">
-            {visible.length === 0 && <div className="empty">No downloads</div>}
-            {visible.map((job) => (
-              <JobRow
-                key={job.id}
-                job={job}
-                onChanged={scheduleRefresh}
-                selected={selectedIds.includes(job.id)}
-                onSelect={
-                  job.state === "done" && job.dir_name
-                    ? (checked) =>
-                        setSelectedIds((prev) =>
-                          checked ? [...prev, job.id] : prev.filter((i) => i !== job.id),
-                        )
-                    : undefined
-                }
-              />
-            ))}
-          </div>
+          {visible.length === 0 ? (
+            <div className="empty">No downloads</div>
+          ) : (
+            <div className="jobtable-wrap">
+              <table className="jobtable">
+                <thead>
+                  <tr>
+                    <th className="select" />
+                    {COLUMNS.map((c) => (
+                      <th key={c.key} onClick={() => clickHeader(c.key)}>
+                        {c.label}
+                        {sortKey === c.key && <span> {sortAsc ? "▲" : "▼"}</span>}
+                      </th>
+                    ))}
+                    <th className="actions" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {visible.map((job) => (
+                    <JobRow
+                      key={job.id}
+                      job={job}
+                      onChanged={scheduleRefresh}
+                      selected={selectedIds.includes(job.id)}
+                      onSelect={
+                        job.state === "done" && job.dir_name
+                          ? (checked) =>
+                              setSelectedIds((prev) =>
+                                checked ? [...prev, job.id] : prev.filter((i) => i !== job.id),
+                              )
+                          : undefined
+                      }
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           <InstallExtension />
         </>

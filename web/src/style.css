@@ -87,26 +87,47 @@ textarea { min-height: 4.5rem; resize: vertical; }
 }
 .statbar b { color: var(--text); }
 
-.joblist { display: flex; flex-direction: column; gap: 0.5rem; }
-
-.job {
+.jobtable-wrap {
   background: var(--panel);
   border-radius: var(--radius);
-  padding: 0.7rem 0.9rem;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.3rem 0.75rem;
+  overflow-x: auto;
 }
 
-.job .url {
-  font-size: 0.9rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
+table.jobtable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+table.jobtable th,
+table.jobtable td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid #29323c;
   white-space: nowrap;
 }
-.job .meta { color: var(--muted); font-size: 0.78rem; display: flex; gap: 0.75rem; }
-.job .actions { grid-row: 1 / span 2; align-self: center; display: flex; gap: 0.35rem; }
-.job .error { grid-column: 1 / -1; color: var(--err); font-size: 0.8rem; }
+table.jobtable th {
+  color: var(--muted);
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+table.jobtable th:hover { color: var(--text); }
+table.jobtable th.select, table.jobtable th.actions { cursor: default; }
+table.jobtable td.url,
+table.jobtable td.dir {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+table.jobtable td.num { text-align: right; }
+table.jobtable td.date { color: var(--muted); font-size: 0.78rem; }
+table.jobtable td.actions { text-align: right; }
+table.jobtable td.actions button { padding: 0.25rem 0.55rem; font-size: 0.78rem; }
+table.jobtable .pending-rename { color: var(--muted); }
+table.jobtable tr.has-extra td { border-bottom: none; }
+table.jobtable tr.extra td { padding-top: 0; }
+table.jobtable tr:last-child td { border-bottom: none; }
+.jobtable .error { color: var(--err); font-size: 0.8rem; }
 
 .badge {
   display: inline-block;

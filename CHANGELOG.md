@@ -4,6 +4,16 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- The downloads list is now a proper table with sortable columns (URL, host,
+  status, files, directory, added, finished) — click a header to sort, click
+  again to reverse, a third time to restore the default order (newest first).
+  Pinned jobs stay on top within any sort. A refresh button (🔄) above the
+  list reloads it on demand. All per-row actions (pause/resume/retry/cancel,
+  rename, pin, merge checkboxes, progress bar, error display) carry over.
+
 ## [0.2.6] - 2026-07-12
 
 ### Added
