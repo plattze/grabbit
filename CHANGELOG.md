@@ -4,7 +4,7 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.7] - 2026-07-12
 
 ### Changed
 - The downloads list is now a proper table with sortable columns (URL, host,
