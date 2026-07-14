@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # --- frontend build (no-op until M2 adds web/; keep the stage for cache shape)
-FROM node:22-slim AS ui
+FROM node:26-slim AS ui
 WORKDIR /build
 COPY web* /build/web/
 RUN if [ -f web/package.json ]; then \
