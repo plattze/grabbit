@@ -188,6 +188,7 @@ class WorkerPool:
         self._stopped = False
         self._loop_task: asyncio.Task | None = None
         self._pin_task: asyncio.Task | None = None
+        self._backfill_task: asyncio.Task | None = None
 
     async def start(self) -> None:
         requeued = await self.db.requeue_interrupted()
@@ -195,14 +196,17 @@ class WorkerPool:
             log.info("requeued %d interrupted job(s)", requeued)
         self._loop_task = asyncio.create_task(self._dispatch_loop())
         self._pin_task = asyncio.create_task(self._pin_loop())
+        if self.cfg.downloads.resolve_titles:
+            self._backfill_task = asyncio.create_task(self._backfill_titles())
 
     async def stop(self) -> None:
         self._stopped = True
         self._wakeup.set()
-        if self._pin_task:
-            self._pin_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self._pin_task
+        for task in (self._pin_task, self._backfill_task):
+            if task:
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
         if self._loop_task:
             await self._loop_task
         for task in list(self._running.values()):
@@ -247,6 +251,55 @@ class WorkerPool:
             except Exception:
                 log.exception("pin recheck loop error")
 
+    async def _maybe_resolve_title(self, job_id: int, url: str) -> None:
+        """Resolve and store a display title for a job, if not already set.
+
+        Best-effort and non-fatal: engine.resolve_title never raises, and a
+        None result (source exposes no title) simply leaves the field unset.
+        Skipped entirely when resolve_titles is off or the engine predates the
+        feature. Never touches the on-disk directory name.
+        """
+        if not self.cfg.downloads.resolve_titles:
+            return
+        resolve = getattr(self.engine, "resolve_title", None)
+        if resolve is None:
+            return
+        job = await self.db.get_job(job_id)
+        if job is None or job.title:
+            return
+        try:
+            title = await resolve(url)
+        except Exception:
+            log.debug("title resolve errored for job %d", job_id, exc_info=True)
+            return
+        if title:
+            await self.db.update_job(job_id, title=title)
+            self.hub.publish({"type": "state", "job_id": job_id,
+                              "state": job.state.value, "title": title})
+            log.info("job %d title resolved: %r", job_id, title)
+
+    async def _backfill_titles(self) -> None:
+        """One-time: resolve titles for finished jobs that never had one.
+
+        Runs in the background after startup, one job at a time with a short
+        gap between probes, so it never competes with active downloads or
+        hammers a host. Errors on any single job are swallowed and skipped.
+        """
+        await asyncio.sleep(2.0)  # let startup settle before probing
+        try:
+            pending = await self.db.list_missing_title()
+        except Exception:
+            log.exception("title backfill: could not list jobs")
+            return
+        if not pending:
+            return
+        log.info("title backfill: %d job(s) to check", len(pending))
+        for job in pending:
+            if self._stopped:
+                return
+            await self._maybe_resolve_title(job.id, job.url)
+            await asyncio.sleep(1.0)  # polite gap between metadata probes
+
     async def _dispatch_loop(self) -> None:
         while not self._stopped:
             try:
@@ -281,6 +334,10 @@ class WorkerPool:
             await self.db.set_state(job_id, JobState.ACTIVE)
             self._publish(job_id, JobState.ACTIVE)
             log.info("job %d start: %s", job_id, redact_url(url))
+
+            # Resolve a display title alongside the download (best-effort, never
+            # blocks or fails the job); skipped if one is already set.
+            loop.create_task(self._maybe_resolve_title(job_id, url))
 
             final_dest = self.cfg.downloads.dest / dest if dest else self.cfg.downloads.dest
             stage = staging_dir(self.cfg, job_id)

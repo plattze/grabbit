@@ -138,6 +138,19 @@ table.jobtable td.actions button {
   margin: 0.1rem 0 0.1rem 0.25rem;
 }
 table.jobtable .pending-rename { color: var(--muted); }
+table.jobtable td.url .title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+table.jobtable td.url .url-sub {
+  display: block;
+  color: var(--muted);
+  font-size: 0.74rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+table.jobtable td.url .url-sub:hover { text-decoration: underline; }
 table.jobtable tr.has-extra td { border-bottom: none; }
 table.jobtable tr.extra td {
   padding-top: 0;

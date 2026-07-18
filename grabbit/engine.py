@@ -9,6 +9,7 @@ stable across gallery-dl releases.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -54,12 +55,20 @@ class DownloadResult:
     error: str | None = None
 
 
+# Metadata keys, most to least specific, that hold a source's display title.
+# The first non-empty one wins. Extractors vary: lolisafe/bunkr use album_name,
+# many galleries use title, some collections use subcategory-ish names.
+_TITLE_KEYS = ("album_name", "title", "gallery_title", "playlist_title",
+               "board_title", "subject", "name")
+
+
 class Engine(Protocol):
     def supports(self, url: str) -> bool: ...
     async def probe(self, url: str) -> list[FileRef]: ...
     async def download(self, url: str, opts: EngineOpts,
                        on_progress: Callable[[ProgressEvent], None],
                        job_id: int = 0) -> DownloadResult: ...
+    async def resolve_title(self, url: str, timeout: float = 30.0) -> str | None: ...
 
 
 class GalleryDLEngine:
@@ -105,6 +114,70 @@ class GalleryDLEngine:
         except json.JSONDecodeError as e:
             raise EngineError(f"unparseable engine output: {e}") from e
         return files
+
+    async def resolve_title(self, url: str, timeout: float = 30.0) -> str | None:
+        """Best-effort human-readable title for a URL (e.g. an album name).
+
+        Runs a metadata-only `--dump-json --no-download` pass and reads the
+        first non-empty title key from the extractor's Directory/Url metadata.
+        Never raises: on any failure (timeout, non-zero exit, unparseable
+        output, no title key) it returns None and the caller keeps the slug.
+        """
+        try:
+            # --range 1 stops after the first item: the Directory metadata
+            # (which carries the album/gallery title) is emitted up front, so
+            # we avoid resolving every file's CDN URL — that can take minutes on
+            # a large album and would blow the timeout, yielding no title.
+            proc = await asyncio.create_subprocess_exec(
+                self.binary, "--dump-json", "--no-download", "--range", "1", url,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        except OSError as e:
+            log.debug("title probe failed to start for %s: %s", url, e)
+            return None
+        try:
+            out, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        except TimeoutError:
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            with contextlib.suppress(Exception):
+                await proc.wait()
+            log.debug("title probe timed out for %s", url)
+            return None
+        if proc.returncode != 0:
+            return None
+        return self._extract_title(out)
+
+    @staticmethod
+    def _extract_title(dump_json: bytes) -> str | None:
+        """Pull the best title key from gallery-dl --dump-json output.
+
+        Output is a JSON list of messages: [2, meta] (Directory) and
+        [3, url, meta] (Url). Directory metadata is preferred (it carries the
+        album/gallery name); Url metadata is the fallback.
+        """
+        try:
+            data = json.loads(dump_json)
+        except (json.JSONDecodeError, ValueError):
+            return None
+        if not isinstance(data, list):
+            return None
+        dir_meta: list[dict] = []
+        url_meta: list[dict] = []
+        for entry in data:
+            if not isinstance(entry, list) or len(entry) < 2:
+                continue
+            if entry[0] == 2 and isinstance(entry[1], dict):
+                dir_meta.append(entry[1])
+            elif entry[0] == 3 and len(entry) >= 3 and isinstance(entry[2], dict):
+                url_meta.append(entry[2])
+        for meta in (*dir_meta, *url_meta):
+            for key in _TITLE_KEYS:
+                value = meta.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+        return None
 
     def _build_args(self, url: str, opts: EngineOpts) -> list[str]:
         # --destination keeps the extractor's directory structure (album/gallery

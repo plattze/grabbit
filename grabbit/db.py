@@ -30,7 +30,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     dir_name TEXT NOT NULL DEFAULT '',
     rename_to TEXT,
     file_paths TEXT NOT NULL DEFAULT '[]',
-    pinned INTEGER NOT NULL DEFAULT 0
+    pinned INTEGER NOT NULL DEFAULT 0,
+    title TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs(state);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_url_open ON jobs(url)
@@ -64,6 +65,7 @@ def _row_to_job(row: aiosqlite.Row) -> Job:
         finished_at=datetime.fromisoformat(row["finished_at"]) if row["finished_at"] else None,
         dir_name=row["dir_name"], rename_to=row["rename_to"],
         pinned=bool(row["pinned"]),
+        title=row["title"],
     )
 
 
@@ -102,6 +104,8 @@ class Database:
         if "pinned" not in cols:
             await self.conn.execute(
                 "ALTER TABLE jobs ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
+        if "title" not in cols:
+            await self.conn.execute("ALTER TABLE jobs ADD COLUMN title TEXT")
 
     async def get_schema_version(self) -> int:
         """SQLite PRAGMA user_version — tracks one-time on-disk migrations."""
@@ -207,6 +211,15 @@ class Database:
                 paths = []
             out.append((row["id"], row["dest"], row["dir_name"], paths))
         return out
+
+    async def list_missing_title(self, limit: int = 500) -> list[Job]:
+        """Finished jobs that never had a title resolved (for one-time backfill)."""
+        cur = await self.conn.execute(
+            "SELECT * FROM jobs WHERE (title IS NULL OR title = '')"
+            " AND state IN (?, ?) ORDER BY id DESC LIMIT ?",
+            (JobState.DONE.value, JobState.ERROR.value, limit),
+        )
+        return [_row_to_job(r) for r in await cur.fetchall()]
 
     async def list_pinned_due(self, cutoff_iso: str) -> list[Job]:
         """Pinned jobs at rest whose last run finished at or before the cutoff."""

@@ -24,6 +24,9 @@ downloads:
   reset_mtime: false        # true = stamp files with the download time instead of the
                             # source's original timestamp (so sorting by date modified
                             # shows what's new)
+  resolve_titles: true      # resolve a human-readable title (e.g. album name) per download
+                            # and show it in the UI instead of the URL slug; never renames
+                            # the on-disk directory. Existing downloads backfilled on startup.
 
 engine:
   name: gallery-dl

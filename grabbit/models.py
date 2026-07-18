@@ -39,6 +39,10 @@ class Job(BaseModel):
     # Pinned: the source is re-checked forever for new files (worker requeues
     # the job every downloads.pin_recheck_minutes after it finishes).
     pinned: bool = False
+    # Human-readable title resolved from the source (e.g. an album name),
+    # for display only — the on-disk directory name (dir_name) is unaffected.
+    # None until resolved; may stay None when the source exposes no title.
+    title: str | None = None
 
 
 class SubmitRequest(BaseModel):

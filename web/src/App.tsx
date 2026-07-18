@@ -295,7 +295,16 @@ function JobRow({
           {job.pinned && (
             <span title="Pinned — source is monitored for new files">📌 </span>
           )}
-          {job.url}
+          {job.title ? (
+            <>
+              <span className="title">{job.title}</span>
+              <a className="url-sub" href={job.url} target="_blank" rel="noreferrer">
+                {job.url}
+              </a>
+            </>
+          ) : (
+            job.url
+          )}
         </td>
         <td>{job.host}</td>
         <td>
@@ -391,7 +400,7 @@ const COLUMNS: { key: SortKey; label: string }[] = [
 function sortValue(job: Job, key: SortKey): string | number {
   switch (key) {
     case "url":
-      return job.url.toLowerCase();
+      return (job.title || job.url).toLowerCase();
     case "host":
       return job.host.toLowerCase();
     case "state":

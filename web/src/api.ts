@@ -18,6 +18,7 @@ export interface Job {
   dir_name: string;
   rename_to: string | null;
   pinned: boolean;
+  title: string | null;
 }
 
 export interface SubmitResult {

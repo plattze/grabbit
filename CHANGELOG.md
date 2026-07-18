@@ -4,6 +4,21 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Downloads now show a human-readable title (e.g. the album/gallery name)
+  instead of just the URL slug. Grabbit resolves it from the source with a
+  fast metadata-only engine probe (`--dump-json --no-download --range 1`, so a
+  large album doesn't stall resolving every file) and stores it per job as a
+  new `title` field; the UI shows the title with the URL as a clickable
+  subline. The on-disk directory name is never changed — the title is display
+  metadata only. Existing downloads are backfilled once on startup (one job at
+  a time, with a polite gap between probes). Best-effort throughout: a source
+  with no title, a failed probe, or a timeout simply leaves the title unset and
+  the slug is shown. Toggle with `downloads.resolve_titles` /
+  `GRABBIT_RESOLVE_TITLES` (default on).
+
 ## [0.2.10] - 2026-07-18
 
 ### Added

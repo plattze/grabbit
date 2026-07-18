@@ -23,7 +23,17 @@ args = sys.argv[1:]
 url = args[-1]
 
 if "--dump-json" in args:
-    print('[[3, "%s/file1.jpg", {"filename": "file1", "extension": "jpg"}]]' % url)
+    if "notitle" in url:
+        print('[[3, "%s/file1.jpg", {"filename": "file1", "extension": "jpg"}]]' % url)
+    elif "fail" in url:
+        # metadata probe fails the same way a download would
+        print("error: extractor blew up", file=sys.stderr)
+        sys.exit(4)
+    else:
+        # Directory message (type 2) carries the album_name, like real
+        # gallery-dl; a Url message (type 3) follows with the file.
+        print('[[2, {"album_name": "Phone1", "album_id": "OaplNHfk"}],'
+              ' [3, "%s/file1.jpg", {"filename": "file1", "extension": "jpg"}]]' % url)
     sys.exit(0)
 
 dest = "."
