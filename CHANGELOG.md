@@ -4,7 +4,7 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.12] - 2026-07-18
 
 ### Added
 - Auto-retry for failed downloads: a single global loop requeues every failed
