@@ -189,6 +189,7 @@ class WorkerPool:
         self._loop_task: asyncio.Task | None = None
         self._pin_task: asyncio.Task | None = None
         self._backfill_task: asyncio.Task | None = None
+        self._retry_task: asyncio.Task | None = None
 
     async def start(self) -> None:
         requeued = await self.db.requeue_interrupted()
@@ -198,11 +199,13 @@ class WorkerPool:
         self._pin_task = asyncio.create_task(self._pin_loop())
         if self.cfg.downloads.resolve_titles:
             self._backfill_task = asyncio.create_task(self._backfill_titles())
+        if self.cfg.downloads.auto_retry and self.cfg.downloads.auto_retry_minutes > 0:
+            self._retry_task = asyncio.create_task(self._auto_retry_loop())
 
     async def stop(self) -> None:
         self._stopped = True
         self._wakeup.set()
-        for task in (self._pin_task, self._backfill_task):
+        for task in (self._pin_task, self._backfill_task, self._retry_task):
             if task:
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
@@ -250,6 +253,42 @@ class WorkerPool:
                     self.notify()
             except Exception:
                 log.exception("pin recheck loop error")
+
+    async def _auto_retry_loop(self) -> None:
+        """Periodically requeue every failed download in one pass.
+
+        A single global loop — deliberately not a per-download timer, which
+        would let several jobs from the same host retry at once and stampede
+        it. Runs every downloads.auto_retry_minutes; each pass moves all
+        unpinned ERROR jobs back to QUEUED and lets the normal dispatch loop
+        (global + per-host semaphores) pace them. Pinned jobs are left to the
+        pin loop.
+        """
+        interval = self.cfg.downloads.auto_retry_minutes * 60.0
+        # Poll often enough to react to shutdown promptly, but only act once a
+        # full interval has elapsed.
+        poll = min(60.0, max(interval / 4, 0.05))
+        elapsed = 0.0
+        while not self._stopped:
+            await asyncio.sleep(poll)
+            elapsed += poll
+            if elapsed < interval:
+                continue
+            elapsed = 0.0
+            try:
+                failed = await self.db.list_failed_unpinned()
+                if not failed:
+                    continue
+                for job in failed:
+                    await self.db.update_job(
+                        job.id, state=JobState.QUEUED.value, error=None,
+                        finished_at=None)
+                    self._publish(job.id, JobState.QUEUED)
+                    log.info("auto-retry queued job %d: %s",
+                             job.id, redact_url(job.url))
+                self.notify()
+            except Exception:
+                log.exception("auto-retry loop error")
 
     async def _maybe_resolve_title(self, job_id: int, url: str) -> None:
         """Resolve and store a display title for a job, if not already set.

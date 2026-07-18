@@ -4,6 +4,20 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Auto-retry for failed downloads: a single global loop requeues every failed
+  (errored) job on a fixed interval, so transient site/network failures recover
+  without manual intervention. Deliberately global rather than a per-download
+  timer — independent timers would let several jobs from the same host retry at
+  once and stampede it; one pass moves all failures back to QUEUED and lets the
+  normal dispatch loop pace them under the existing concurrency/per-host limits.
+  Pinned jobs are left to the pin loop. On by default every 10 minutes;
+  configure with `downloads.auto_retry` / `GRABBIT_AUTO_RETRY` and
+  `downloads.auto_retry_minutes` / `GRABBIT_AUTO_RETRY_MINUTES` (set
+  `auto_retry: false` to disable).
+
 ## [0.2.11] - 2026-07-18
 
 ### Added

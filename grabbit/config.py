@@ -34,6 +34,11 @@ class DownloadsConfig(BaseModel):
     keep_dirs: bool = True
     # How often pinned jobs re-check their source for new files (minutes).
     pin_recheck_minutes: float = 60
+    # Periodically requeue failed downloads. A single global loop runs every
+    # auto_retry_minutes and re-kicks ALL errored jobs in one pass (not a
+    # per-download timer, which would race multiple downloads at the same host).
+    auto_retry: bool = True
+    auto_retry_minutes: float = 10
     # Stamp downloaded files with the download time instead of the source's
     # original timestamp, so "sort by date modified" surfaces new downloads.
     reset_mtime: bool = False
@@ -101,6 +106,8 @@ _ENV_OVERRIDES: dict[str, tuple[str, ...]] = {
     "GRABBIT_INCOMPLETE_DIR": ("downloads", "incomplete_dir"),
     "GRABBIT_KEEP_DIRS": ("downloads", "keep_dirs"),
     "GRABBIT_PIN_RECHECK_MINUTES": ("downloads", "pin_recheck_minutes"),
+    "GRABBIT_AUTO_RETRY": ("downloads", "auto_retry"),
+    "GRABBIT_AUTO_RETRY_MINUTES": ("downloads", "auto_retry_minutes"),
     "GRABBIT_RESET_MTIME": ("downloads", "reset_mtime"),
     "GRABBIT_RESOLVE_TITLES": ("downloads", "resolve_titles"),
     "GRABBIT_DATA_DIR": ("data_dir",),

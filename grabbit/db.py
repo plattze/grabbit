@@ -221,6 +221,18 @@ class Database:
         )
         return [_row_to_job(r) for r in await cur.fetchall()]
 
+    async def list_failed_unpinned(self) -> list[Job]:
+        """Errored jobs that aren't pinned (auto-retry candidates).
+
+        Pinned jobs are excluded — the pin loop already rechecks them on its
+        own schedule, so auto-retry leaves them to it.
+        """
+        cur = await self.conn.execute(
+            "SELECT * FROM jobs WHERE state = ? AND pinned = 0 ORDER BY id",
+            (JobState.ERROR.value,),
+        )
+        return [_row_to_job(r) for r in await cur.fetchall()]
+
     async def list_pinned_due(self, cutoff_iso: str) -> list[Job]:
         """Pinned jobs at rest whose last run finished at or before the cutoff."""
         cur = await self.conn.execute(
