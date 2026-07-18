@@ -12,7 +12,7 @@ dependencies = [
     "pydantic>=2.7",
     "PyYAML>=6.0",
     "prometheus-client>=0.20",
-    "gallery-dl>=1.29",
+    "gallery-dl>=1.32.7",
 ]
 
 [project.optional-dependencies]
