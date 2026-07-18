@@ -422,7 +422,8 @@ class WorkerPool:
                 await self.db.set_job_files(job_id, rel_files)
                 await self._apply_pending_rename(job_id, final_dest)
                 await self.db.update_job(job_id, files_done=result.files_done,
-                                         files_total=result.files_done)
+                                         files_total=result.files_done,
+                                         bytes_done=result.bytes_done)
                 await self.db.set_state(job_id, JobState.DONE)
                 self._publish(job_id, JobState.DONE, files_done=result.files_done)
                 log.info("job %d done: %d file(s)", job_id, result.files_done)
@@ -470,10 +471,12 @@ class WorkerPool:
             log.warning("job %d rename skipped: no directory %r", job_id, job.dir_name)
 
     async def _on_progress(self, job_id: int, ev: ProgressEvent) -> None:
-        await self.db.update_job(job_id, files_done=ev.files_done)
+        await self.db.update_job(
+            job_id, files_done=ev.files_done, bytes_done=ev.bytes_done)
         self.hub.publish({
             "type": "progress", "job_id": job_id,
             "files_done": ev.files_done, "current_file": ev.current_file,
+            "bytes_done": ev.bytes_done, "bytes_per_sec": ev.bytes_per_sec,
         })
 
     def _publish(self, job_id: int, state: JobState, **extra) -> None:

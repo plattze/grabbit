@@ -14,6 +14,7 @@ import json
 import logging
 import os
 import signal
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -46,6 +47,11 @@ class EngineOpts:
 class ProgressEvent:
     files_done: int
     current_file: str | None = None
+    # Cumulative bytes downloaded so far and the current transfer rate
+    # (bytes/second) since the previous event. gallery-dl's CLI reports only
+    # completed file paths, so both are derived by statting each finished file.
+    bytes_done: int = 0
+    bytes_per_sec: float = 0.0
 
 
 @dataclass
@@ -53,6 +59,7 @@ class DownloadResult:
     success: bool
     files_done: int
     error: str | None = None
+    bytes_done: int = 0
 
 
 # Metadata keys, most to least specific, that hold a source's display title.
@@ -216,6 +223,8 @@ class GalleryDLEngine:
         )
         self._procs[job_id] = proc
         files_done = 0
+        bytes_done = 0
+        last_time = time.monotonic()
         stderr_tail: list[str] = []
 
         async def read_stderr() -> None:
@@ -236,16 +245,31 @@ class GalleryDLEngine:
                 # Each stdout line is a downloaded path; "# path" means skipped-existing.
                 files_done += 1
                 current = line.removeprefix("# ").strip()
-                on_progress(ProgressEvent(files_done=files_done, current_file=current))
+                # gallery-dl reports no byte counts, so derive size and rate by
+                # statting the just-finished file. Skipped-existing lines still
+                # count toward totals but contribute ~0 to the rate.
+                size = 0
+                with contextlib.suppress(OSError):
+                    size = os.path.getsize(current)
+                bytes_done += size
+                now = time.monotonic()
+                elapsed = now - last_time
+                rate = size / elapsed if elapsed > 0 else 0.0
+                last_time = now
+                on_progress(ProgressEvent(
+                    files_done=files_done, current_file=current,
+                    bytes_done=bytes_done, bytes_per_sec=rate))
             await proc.wait()
         finally:
             await stderr_task
             self._procs.pop(job_id, None)
 
         if proc.returncode == 0:
-            return DownloadResult(success=True, files_done=files_done)
+            return DownloadResult(
+                success=True, files_done=files_done, bytes_done=bytes_done)
         err = "; ".join(stderr_tail[-3:]) or f"engine exited with code {proc.returncode}"
-        return DownloadResult(success=False, files_done=files_done, error=err)
+        return DownloadResult(
+            success=False, files_done=files_done, error=err, bytes_done=bytes_done)
 
     def cancel(self, job_id: int) -> bool:
         proc = self._procs.get(job_id)

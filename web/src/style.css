@@ -180,6 +180,18 @@ table.jobtable tr:last-child td { border-bottom: none; }
   overflow: hidden;
 }
 .progress > div { height: 100%; background: var(--accent); transition: width 0.3s; }
+.active-status {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.active-status .progress { flex: 1; }
+.active-status .speed {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 
 table.keys { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 table.keys th, table.keys td { text-align: left; padding: 0.45rem 0.5rem; border-bottom: 1px solid #29323c; }

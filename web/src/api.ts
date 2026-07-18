@@ -11,6 +11,7 @@ export interface Job {
   dest: string;
   files_total: number;
   files_done: number;
+  bytes_done: number;
   error: string | null;
   created_at: string;
   updated_at: string;
@@ -149,7 +150,14 @@ export const api = {
 
 export type WsEvent =
   | { type: "state"; job_id: number; state: JobState; error?: string; files_done?: number }
-  | { type: "progress"; job_id: number; files_done: number; current_file: string | null };
+  | {
+      type: "progress";
+      job_id: number;
+      files_done: number;
+      current_file: string | null;
+      bytes_done: number;
+      bytes_per_sec: number;
+    };
 
 export function openEventSocket(onEvent: (e: WsEvent) => void, onDrop: () => void): () => void {
   let ws: WebSocket | null = null;

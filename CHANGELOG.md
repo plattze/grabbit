@@ -4,6 +4,18 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Active downloads now show a live transfer speed next to their progress bar.
+  gallery-dl's CLI reports only completed file paths (no byte counts), so the
+  engine derives both the cumulative bytes and the current rate by statting
+  each finished file and timing the gaps between them; the rate rides the
+  existing progress WebSocket events and the per-job `bytes_done` (already in
+  the schema) is now populated. A file that can't be stat'd contributes zero
+  and never breaks progress. Speed is display-only and clears when a job leaves
+  the active state.
+
 ## [0.2.14] - 2026-07-18
 
 ### Changed

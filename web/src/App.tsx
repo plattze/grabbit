@@ -243,11 +243,13 @@ function JobRow({
   onChanged,
   selected,
   onSelect,
+  speed,
 }: {
   job: Job;
   onChanged: () => void;
   selected?: boolean;
   onSelect?: (checked: boolean) => void;
+  speed?: number;
 }) {
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState("");
@@ -369,8 +371,13 @@ function JobRow({
             )}
             {renameError && <div className="error">{renameError}</div>}
             {job.state === "active" && (
-              <div className="progress">
-                <div style={{ width: pct !== null ? `${pct}%` : "100%" }} />
+              <div className="active-status">
+                <div className="progress">
+                  <div style={{ width: pct !== null ? `${pct}%` : "100%" }} />
+                </div>
+                {speed !== undefined && speed > 0 && (
+                  <span className="speed">{fmtBytes(speed)}/s</span>
+                )}
               </div>
             )}
             {job.error && <div className="error">{job.error}</div>}
@@ -426,6 +433,8 @@ export default function App() {
   const [wsDown, setWsDown] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortAsc, setSortAsc] = useState(false);
+  // Live per-job download rate (bytes/sec) from progress events; not persisted.
+  const [speeds, setSpeeds] = useState<Record<number, number>>({});
   const refreshTimer = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
@@ -457,10 +466,20 @@ export default function App() {
         if (ev.type === "progress") {
           setJobs((prev) =>
             prev.map((j) =>
-              j.id === ev.job_id ? { ...j, files_done: ev.files_done } : j,
+              j.id === ev.job_id
+                ? { ...j, files_done: ev.files_done, bytes_done: ev.bytes_done }
+                : j,
             ),
           );
+          setSpeeds((prev) => ({ ...prev, [ev.job_id]: ev.bytes_per_sec }));
         } else {
+          // A state change (e.g. finished) clears any stale live speed.
+          setSpeeds((prev) => {
+            if (!(ev.job_id in prev)) return prev;
+            const next = { ...prev };
+            delete next[ev.job_id];
+            return next;
+          });
           scheduleRefresh();
         }
       },
@@ -645,6 +664,7 @@ export default function App() {
                       key={job.id}
                       job={job}
                       onChanged={scheduleRefresh}
+                      speed={speeds[job.id]}
                       selected={selectedIds.includes(job.id)}
                       onSelect={
                         job.state === "done" && job.dir_name
