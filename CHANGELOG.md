@@ -4,6 +4,16 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.9] - 2026-07-18
+
+### Changed
+- The downloads table now fits its columns instead of cramming into the old
+  960px layout: the app widens to 1500px and the table uses a fixed layout with
+  stable per-column widths (host, status, files, directory, dates, actions),
+  letting the URL column absorb the remaining width. Long error messages wrap
+  and scroll within their cell instead of stretching the row. Completes the
+  visual side of the sortable table added in 0.2.7.
+
 ## [0.2.8] - 2026-07-18
 
 ### Changed
