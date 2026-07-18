@@ -22,7 +22,7 @@ body {
 }
 
 .app {
-  max-width: 960px;
+  max-width: 1500px;
   margin: 0 auto;
   padding: 1.5rem 1rem 4rem;
 }
@@ -95,6 +95,10 @@ textarea { min-height: 4.5rem; resize: vertical; }
 
 table.jobtable {
   width: 100%;
+  /* Fixed columns sum to 68rem; the extra 8rem is the URL column's floor.
+     Below this the wrap scrolls; above, URL absorbs all the slack. */
+  min-width: 76rem;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.85rem;
 }
@@ -104,6 +108,8 @@ table.jobtable td {
   padding: 0.5rem 0.6rem;
   border-bottom: 1px solid #29323c;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 table.jobtable th {
   color: var(--muted);
@@ -113,21 +119,39 @@ table.jobtable th {
 }
 table.jobtable th:hover { color: var(--text); }
 table.jobtable th.select, table.jobtable th.actions { cursor: default; }
-table.jobtable td.url,
-table.jobtable td.dir {
-  max-width: 16rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* Fixed layout: widths come from the header row; URL takes the leftover. */
+table.jobtable th.select { width: 2rem; }
+table.jobtable th.host { width: 8rem; }
+table.jobtable th.state { width: 6.5rem; }
+table.jobtable th.files { width: 6rem; }
+table.jobtable th.dir { width: 11rem; }
+table.jobtable th.created,
+table.jobtable th.finished { width: 8.75rem; }
+table.jobtable th.actions { width: 17rem; }
 table.jobtable td.num { text-align: right; }
+table.jobtable th.files { text-align: right; }
 table.jobtable td.date { color: var(--muted); font-size: 0.78rem; }
-table.jobtable td.actions { text-align: right; }
-table.jobtable td.actions button { padding: 0.25rem 0.55rem; font-size: 0.78rem; }
+table.jobtable td.actions { text-align: right; white-space: normal; }
+table.jobtable td.actions button {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.78rem;
+  margin: 0.1rem 0 0.1rem 0.25rem;
+}
 table.jobtable .pending-rename { color: var(--muted); }
 table.jobtable tr.has-extra td { border-bottom: none; }
-table.jobtable tr.extra td { padding-top: 0; }
+table.jobtable tr.extra td {
+  padding-top: 0;
+  white-space: normal;
+  overflow: visible;
+}
 table.jobtable tr:last-child td { border-bottom: none; }
-.jobtable .error { color: var(--err); font-size: 0.8rem; }
+.jobtable .error {
+  color: var(--err);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+  max-height: 6.5em;
+  overflow-y: auto;
+}
 
 .badge {
   display: inline-block;

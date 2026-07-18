@@ -592,7 +592,7 @@ export default function App() {
                   <tr>
                     <th className="select" />
                     {COLUMNS.map((c) => (
-                      <th key={c.key} onClick={() => clickHeader(c.key)}>
+                      <th key={c.key} className={c.key} onClick={() => clickHeader(c.key)}>
                         {c.label}
                         {sortKey === c.key && <span> {sortAsc ? "▲" : "▼"}</span>}
                       </th>
