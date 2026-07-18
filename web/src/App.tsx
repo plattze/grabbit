@@ -289,7 +289,7 @@ function JobRow({
               type="checkbox"
               checked={selected ?? false}
               onChange={(e) => onSelect(e.target.checked)}
-              title="Select for merge"
+              title="Select to merge into one folder"
             />
           )}
         </td>
@@ -669,13 +669,10 @@ export default function App() {
                       onChanged={scheduleRefresh}
                       speed={speeds[job.id]}
                       selected={selectedIds.includes(job.id)}
-                      onSelect={
-                        job.state === "done" && job.dir_name
-                          ? (checked) =>
-                              setSelectedIds((prev) =>
-                                checked ? [...prev, job.id] : prev.filter((i) => i !== job.id),
-                              )
-                          : undefined
+                      onSelect={(checked) =>
+                        setSelectedIds((prev) =>
+                          checked ? [...prev, job.id] : prev.filter((i) => i !== job.id),
+                        )
                       }
                     />
                   ))}

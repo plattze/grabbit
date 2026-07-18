@@ -4,6 +4,18 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- Downloads can now be merged into one folder regardless of status. Previously
+  only finished jobs with a detected directory could be selected; the selection
+  checkbox now appears on every download row. Finished jobs still have their
+  files moved into the shared directory immediately (flat, directory-less
+  finished jobs are gathered in too); jobs that haven't finished downloading —
+  queued, active, paused, errored — are marked to land in the shared directory
+  when they complete, reusing the deferred-rename mechanism. So a set of
+  not-yet-started downloads can be pointed at one folder up front.
+
 ## [0.2.17] - 2026-07-18
 
 ### Changed

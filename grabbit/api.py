@@ -227,40 +227,60 @@ class MergeRequest(BaseModel):
 @router.post("/downloads/merge", response_model=list[Job])
 async def merge(req: MergeRequest, request: Request,
                 key: ApiKeyInfo = Depends(require_submit)) -> list[Job]:
-    """Merge the output directories of several completed jobs into one.
+    """Merge several downloads into one shared directory, regardless of status.
 
-    Files from every selected job's directory move into dest/<name> (created
-    if needed; filename collisions get a " (2)" suffix). The original job
-    records stay in history, all pointing at the merged directory.
+    Finished jobs have their files moved into dest/<name> now (created if
+    needed; filename collisions get a " (2)" suffix). Jobs that haven't
+    finished downloading yet — queued, active, paused, errored, cancelled — are
+    marked to land in dest/<name> when they (eventually) complete, reusing the
+    same deferred-rename path a live rename uses. So even a set of not-yet-
+    started downloads converges into one directory. The original job records
+    stay in history, all pointing at the merged directory.
     """
     st = _state(request)
     name = _validate_dir_name(req.name)
     if len(set(req.job_ids)) != len(req.job_ids):
         raise HTTPException(status_code=400, detail="duplicate job ids")
 
-    jobs: list[Job] = []
-    for job_id in req.job_ids:
-        job = await _get_job_or_404(request, job_id)
-        if job.state != JobState.DONE:
-            raise HTTPException(status_code=409, detail=f"job {job_id} is {job.state}, not done")
-        if not job.dir_name:
-            raise HTTPException(status_code=409,
-                                detail=f"job {job_id} has no output directory")
-        jobs.append(job)
+    jobs = [await _get_job_or_404(request, job_id) for job_id in req.job_ids]
 
     def base(job: Job) -> Path:
         return st.cfg.downloads.dest / job.dest if job.dest else st.cfg.downloads.dest
 
-    sources = [base(j) / j.dir_name for j in jobs]
-    missing = [str(s) for s in sources if not s.is_dir()]
-    if missing:
-        raise HTTPException(status_code=409,
-                            detail=f"directory no longer exists: {missing[0]}")
-
+    target_dest = jobs[0].dest
     target = base(jobs[0]) / name
-    await asyncio.to_thread(merge_dirs, sources, target)
+
+    # Finished jobs with a directory contribute their files immediately; a
+    # vanished directory is a hard error (don't silently drop it).
+    dir_sources: list[Path] = []
     for job in jobs:
-        await st.db.update_job(job.id, dir_name=name, dest=jobs[0].dest)
+        if job.state == JobState.DONE and job.dir_name:
+            src = base(job) / job.dir_name
+            if not src.is_dir():
+                raise HTTPException(status_code=409,
+                                    detail=f"directory no longer exists: {job.dir_name}")
+            dir_sources.append(src)
+    if dir_sources:
+        await asyncio.to_thread(merge_dirs, dir_sources, target)
+
+    # Finished jobs whose files landed flat (no directory): gather them in too.
+    for job in jobs:
+        if job.state == JobState.DONE and not job.dir_name:
+            rel_files = await st.db.get_job_files(job.id)
+            existing = [rel for rel in rel_files if (base(job) / rel).is_file()]
+            if existing:
+                await asyncio.to_thread(gather_into_dir, base(job), existing, target)
+
+    for job in jobs:
+        if job.state == JobState.DONE:
+            await st.db.update_job(job.id, dir_name=name, dest=target_dest)
+        else:
+            # Not finished yet: defer — the download lands in <its dest>/<name>
+            # when it completes (via WorkerPool._apply_pending_rename). dest is
+            # left as-is: an active job is already downloading against it, and
+            # touching it would desync the record from where the worker lands
+            # the files. With the usual empty dest this equals the merge target.
+            await st.db.update_job(job.id, rename_to=name)
     return [await _get_job_or_404(request, j.id) for j in jobs]
 
 
