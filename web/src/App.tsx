@@ -291,20 +291,16 @@ function JobRow({
             />
           )}
         </td>
-        <td className="url" title={job.url}>
+        <td className="title" title={job.title || undefined}>
           {job.pinned && (
             <span title="Pinned — source is monitored for new files">📌 </span>
           )}
-          {job.title ? (
-            <>
-              <span className="title">{job.title}</span>
-              <a className="url-sub" href={job.url} target="_blank" rel="noreferrer">
-                {job.url}
-              </a>
-            </>
-          ) : (
-            job.url
-          )}
+          {job.title || <span className="muted">—</span>}
+        </td>
+        <td className="url" title={job.url}>
+          <a href={job.url} target="_blank" rel="noreferrer">
+            {job.url}
+          </a>
         </td>
         <td>{job.host}</td>
         <td>
@@ -351,7 +347,7 @@ function JobRow({
       </tr>
       {hasExtra && (
         <tr className="extra">
-          <td colSpan={9}>
+          <td colSpan={10}>
             {renaming && (
               <div className="submit-row">
                 <input
@@ -385,9 +381,10 @@ function JobRow({
   );
 }
 
-type SortKey = "url" | "host" | "state" | "files" | "dir" | "created" | "finished";
+type SortKey = "title" | "url" | "host" | "state" | "files" | "dir" | "created" | "finished";
 
 const COLUMNS: { key: SortKey; label: string }[] = [
+  { key: "title", label: "Title" },
   { key: "url", label: "URL" },
   { key: "host", label: "Host" },
   { key: "state", label: "Status" },
@@ -399,8 +396,10 @@ const COLUMNS: { key: SortKey; label: string }[] = [
 
 function sortValue(job: Job, key: SortKey): string | number {
   switch (key) {
+    case "title":
+      return (job.title || "").toLowerCase();
     case "url":
-      return (job.title || job.url).toLowerCase();
+      return job.url.toLowerCase();
     case "host":
       return job.host.toLowerCase();
     case "state":

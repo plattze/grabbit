@@ -4,6 +4,16 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- The resolved download title now has its own sortable "Title" column in the
+  downloads table, separate from the URL. Previously the title shared the URL
+  cell (title on top, URL as a subline); now Title and URL are distinct columns
+  — the URL column is a plain clickable link and the pin marker moves to the
+  title cell. Jobs with no resolved title show "—". Sorting by Title orders by
+  the resolved name (untitled jobs sort last).
+
 ## [0.2.13] - 2026-07-18
 
 ### Fixed

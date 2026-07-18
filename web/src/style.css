@@ -121,6 +121,7 @@ table.jobtable th:hover { color: var(--text); }
 table.jobtable th.select, table.jobtable th.actions { cursor: default; }
 /* Fixed layout: widths come from the header row; URL takes the leftover. */
 table.jobtable th.select { width: 2rem; }
+table.jobtable th.title { width: 16rem; }
 table.jobtable th.host { width: 8rem; }
 table.jobtable th.state { width: 6.5rem; }
 table.jobtable th.files { width: 6rem; }
@@ -138,19 +139,9 @@ table.jobtable td.actions button {
   margin: 0.1rem 0 0.1rem 0.25rem;
 }
 table.jobtable .pending-rename { color: var(--muted); }
-table.jobtable td.url .title {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-table.jobtable td.url .url-sub {
-  display: block;
-  color: var(--muted);
-  font-size: 0.74rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-table.jobtable td.url .url-sub:hover { text-decoration: underline; }
+table.jobtable td.title .muted { color: var(--muted); }
+table.jobtable td.url a { color: inherit; text-decoration: none; }
+table.jobtable td.url a:hover { text-decoration: underline; }
 table.jobtable tr.has-extra td { border-bottom: none; }
 table.jobtable tr.extra td {
   padding-top: 0;
