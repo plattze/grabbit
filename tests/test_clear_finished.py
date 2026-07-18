@@ -67,19 +67,32 @@ async def test_clear_finished_keeps_active_and_queued(client, submit_key):
     assert ids == [slow]
 
 
-async def test_clear_finished_includes_error_and_cancelled(client, submit_key):
-    errored = await _submit(client, submit_key, "https://example.com/fail")
-    await wait_for_state(client, submit_key, errored, "error")
-
+async def test_clear_finished_clears_cancelled(client, submit_key):
     cancelled = await _submit(client, submit_key, "https://example.com/slow/x")
     await wait_for_state(client, submit_key, cancelled, "active")
     await client.delete(f"/api/downloads/{cancelled}", headers=auth(submit_key))
     await wait_for_state(client, submit_key, cancelled, "cancelled")
 
     r = await client.post("/api/downloads/clear-finished", headers=auth(submit_key))
-    assert r.json()["removed"] == 2
+    assert r.json()["removed"] == 1
     r = await client.get("/api/downloads", headers=auth(submit_key))
     assert r.json() == []
+
+
+async def test_clear_finished_keeps_errored(client, submit_key):
+    # Errored jobs have not finished — they may still be retried — so they are
+    # kept, while a done job alongside is cleared.
+    errored = await _submit(client, submit_key, "https://example.com/fail")
+    done = await _submit(client, submit_key, "https://example.com/ok")
+    await wait_for_state(client, submit_key, errored, "error")
+    await wait_for_state(client, submit_key, done, "done")
+
+    r = await client.post("/api/downloads/clear-finished", headers=auth(submit_key))
+    assert r.json()["removed"] == 1
+
+    r = await client.get("/api/downloads", headers=auth(submit_key))
+    ids = [j["id"] for j in r.json()]
+    assert ids == [errored]
 
 
 async def test_clear_finished_requires_auth(client):

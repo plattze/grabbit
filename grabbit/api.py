@@ -271,8 +271,9 @@ class ClearFinishedResult(BaseModel):
 @router.post("/downloads/clear-finished", response_model=ClearFinishedResult)
 async def clear_finished(request: Request,
                          key: ApiKeyInfo = Depends(require_submit)) -> ClearFinishedResult:
-    """Remove all finished (done/error/cancelled) downloads from history.
+    """Remove finished (done/cancelled) downloads from history.
 
+    ERROR jobs are kept — they have not finished and may still be retried.
     Pinned jobs are kept even when finished — their source is still monitored.
     Active, queued, and paused jobs are untouched. Each removed job's staging
     leftovers are cleaned up too.

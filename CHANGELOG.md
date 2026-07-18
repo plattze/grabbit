@@ -4,6 +4,15 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- "Clear finished" no longer removes failed (errored) downloads. Errored jobs
+  have not actually finished — they may still be retried, manually or by the
+  auto-retry loop — so clearing finished downloads now spares them and removes
+  only done and cancelled ones (pinned jobs are still kept). Introduced in
+  0.2.10, where the clear treated error as terminal alongside done/cancelled.
+
 ## [0.2.12] - 2026-07-18
 
 ### Added

@@ -243,18 +243,21 @@ class Database:
         return [_row_to_job(r) for r in await cur.fetchall()]
 
     async def delete_finished_unpinned(self) -> list[int]:
-        """Remove every terminal (done/error/cancelled) job that isn't pinned.
+        """Remove finished (done/cancelled) unpinned jobs from history.
 
-        Returns the ids removed so the caller can clean up their staging dirs.
-        Pinned jobs are kept even when finished — the source is still monitored.
+        ERROR jobs are deliberately kept: they have not actually finished —
+        they failed and may still be retried (manually or by the auto-retry
+        loop), so "clear finished" must leave them in place. Pinned jobs are
+        kept regardless — their source is still monitored. Returns the ids
+        removed so the caller can clean up their staging dirs.
         """
-        terminal = (JobState.DONE.value, JobState.ERROR.value, JobState.CANCELLED.value)
+        cleared = (JobState.DONE.value, JobState.CANCELLED.value)
         cur = await self.conn.execute(
-            "SELECT id FROM jobs WHERE state IN (?, ?, ?) AND pinned = 0", terminal)
+            "SELECT id FROM jobs WHERE state IN (?, ?) AND pinned = 0", cleared)
         ids = [row["id"] for row in await cur.fetchall()]
         if ids:
             await self.conn.execute(
-                "DELETE FROM jobs WHERE state IN (?, ?, ?) AND pinned = 0", terminal)
+                "DELETE FROM jobs WHERE state IN (?, ?) AND pinned = 0", cleared)
             await self.conn.commit()
         return ids
 
