@@ -30,6 +30,9 @@ downloads:
   resolve_titles: true      # resolve a human-readable title (e.g. album name) per download
                             # and show it in the UI instead of the URL slug; never renames
                             # the on-disk directory. Existing downloads backfilled on startup.
+  count_files: true         # probe each download's total file count up front so the UI can
+                            # show a live progress percentage; best-effort (can be slow on
+                            # large albums), the percentage is hidden if the probe fails
 
 engine:
   name: gallery-dl

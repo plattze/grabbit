@@ -157,6 +157,7 @@ export type WsEvent =
       current_file: string | null;
       bytes_done: number;
       bytes_per_sec: number;
+      files_total?: number;
     };
 
 export function openEventSocket(onEvent: (e: WsEvent) => void, onDrop: () => void): () => void {

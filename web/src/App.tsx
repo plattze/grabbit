@@ -279,7 +279,7 @@ function JobRow({
   };
   const pct =
     job.files_total > 0 ? Math.min(100, (job.files_done / job.files_total) * 100) : null;
-  const hasExtra = renaming || Boolean(renameError) || job.state === "active" || Boolean(job.error);
+  const hasExtra = renaming || Boolean(renameError) || Boolean(job.error);
   return (
     <>
       <tr className={hasExtra ? "has-extra" : undefined}>
@@ -307,6 +307,14 @@ function JobRow({
         <td>{job.host}</td>
         <td>
           <span className={`badge ${job.state}`}>{job.state}</span>
+          {job.state === "active" && (
+            <span className="active-meta">
+              {pct !== null && <span className="pct">{Math.round(pct)}%</span>}
+              {speed !== undefined && speed > 0 && (
+                <span className="speed">{fmtBytes(speed)}/s</span>
+              )}
+            </span>
+          )}
         </td>
         <td className="num">
           {job.files_done > 0
@@ -370,16 +378,6 @@ function JobRow({
               </div>
             )}
             {renameError && <div className="error">{renameError}</div>}
-            {job.state === "active" && (
-              <div className="active-status">
-                <div className="progress">
-                  <div style={{ width: pct !== null ? `${pct}%` : "100%" }} />
-                </div>
-                {speed !== undefined && speed > 0 && (
-                  <span className="speed">{fmtBytes(speed)}/s</span>
-                )}
-              </div>
-            )}
             {job.error && <div className="error">{job.error}</div>}
           </td>
         </tr>
@@ -467,7 +465,12 @@ export default function App() {
           setJobs((prev) =>
             prev.map((j) =>
               j.id === ev.job_id
-                ? { ...j, files_done: ev.files_done, bytes_done: ev.bytes_done }
+                ? {
+                    ...j,
+                    files_done: ev.files_done,
+                    bytes_done: ev.bytes_done,
+                    ...(ev.files_total !== undefined ? { files_total: ev.files_total } : {}),
+                  }
                 : j,
             ),
           );

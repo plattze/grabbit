@@ -4,6 +4,25 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Active downloads now show a live progress percentage (based on file count)
+  next to their status, alongside the live transfer speed. At job start a
+  best-effort background probe enumerates the source's files — the same
+  `--dump-json --no-download` pass used for title resolution — and stores the
+  count as `files_total`, so the existing `files_done / files_total` percentage
+  becomes meaningful mid-download instead of only at completion. The probe is a
+  full source enumeration (can be slow on large albums) and never blocks or
+  fails the download; on any error the percentage is simply hidden. Controlled
+  by the new `downloads.count_files` option (default on; env
+  `GRABBIT_COUNT_FILES`). At completion `files_total` is finalized to the real
+  downloaded count so done/total always line up.
+
+### Changed
+- The percentage and speed for active downloads now sit in the Status column,
+  and the separate progress-bar row has been removed — compacting active rows.
+
 ## [0.2.15] - 2026-07-18
 
 ### Added

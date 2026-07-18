@@ -317,6 +317,43 @@ class WorkerPool:
                               "state": job.state.value, "title": title})
             log.info("job %d title resolved: %r", job_id, title)
 
+    async def _maybe_count_files(self, job_id: int, url: str) -> None:
+        """Probe and store a job's total file count, if enabled and not yet known.
+
+        Best-effort and non-fatal: a full source enumeration (like a JDownloader
+        link-check) via engine.probe(). On any failure (probe raises, engine
+        predates the feature, empty result) files_total is left untouched and
+        the UI simply shows no percentage. Never touches the download itself.
+        """
+        if not self.cfg.downloads.count_files:
+            return
+        probe = getattr(self.engine, "probe", None)
+        if probe is None:
+            return
+        job = await self.db.get_job(job_id)
+        if job is None or job.files_total > 0:
+            return
+        try:
+            files = await probe(url)
+        except Exception:
+            log.debug("file count probe errored for job %d", job_id, exc_info=True)
+            return
+        total = len(files)
+        if total <= 0:
+            return
+        # A job can finish before this background probe returns; don't clobber
+        # the completion-time files_total in that case.
+        current = await self.db.get_job(job_id)
+        if current is None or current.state in (JobState.DONE, JobState.ERROR,
+                                                JobState.CANCELLED):
+            return
+        await self.db.update_job(job_id, files_total=total)
+        self.hub.publish({"type": "progress", "job_id": job_id,
+                          "files_done": current.files_done, "current_file": None,
+                          "bytes_done": current.bytes_done, "bytes_per_sec": 0.0,
+                          "files_total": total})
+        log.info("job %d file count probed: %d", job_id, total)
+
     async def _backfill_titles(self) -> None:
         """One-time: resolve titles for finished jobs that never had one.
 
@@ -374,9 +411,10 @@ class WorkerPool:
             self._publish(job_id, JobState.ACTIVE)
             log.info("job %d start: %s", job_id, redact_url(url))
 
-            # Resolve a display title alongside the download (best-effort, never
-            # blocks or fails the job); skipped if one is already set.
+            # Resolve a display title and probe the total file count alongside
+            # the download (both best-effort, never block or fail the job).
             loop.create_task(self._maybe_resolve_title(job_id, url))
+            loop.create_task(self._maybe_count_files(job_id, url))
 
             final_dest = self.cfg.downloads.dest / dest if dest else self.cfg.downloads.dest
             stage = staging_dir(self.cfg, job_id)

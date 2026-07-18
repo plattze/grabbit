@@ -47,6 +47,11 @@ class DownloadsConfig(BaseModel):
     # per job; the on-disk directory name is never changed. Existing downloads
     # are backfilled once on startup.
     resolve_titles: bool = True
+    # Probe each download's total file count up front so the UI can show a live
+    # progress percentage while it runs. Best-effort metadata probe per job (a
+    # full source enumeration, like a JDownloader link-check — can be slow on
+    # large albums); on failure the percentage is simply hidden.
+    count_files: bool = True
 
 
 class EngineConfig(BaseModel):
@@ -110,6 +115,7 @@ _ENV_OVERRIDES: dict[str, tuple[str, ...]] = {
     "GRABBIT_AUTO_RETRY_MINUTES": ("downloads", "auto_retry_minutes"),
     "GRABBIT_RESET_MTIME": ("downloads", "reset_mtime"),
     "GRABBIT_RESOLVE_TITLES": ("downloads", "resolve_titles"),
+    "GRABBIT_COUNT_FILES": ("downloads", "count_files"),
     "GRABBIT_DATA_DIR": ("data_dir",),
     "GRABBIT_ENGINE_CHANNEL": ("engine", "channel"),
     "GRABBIT_LOG_LEVEL": ("logging", "level"),
