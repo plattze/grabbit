@@ -1,6 +1,6 @@
 [project]
 name = "grabbit"
-version = "0.2.17"
+version = "0.2.18"
 description = "Modern, self-hosted, web-native download manager powered by gallery-dl"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
