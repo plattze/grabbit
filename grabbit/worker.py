@@ -341,17 +341,17 @@ class WorkerPool:
         total = len(files)
         if total <= 0:
             return
-        # A job can finish before this background probe returns; don't clobber
-        # the completion-time files_total in that case.
-        current = await self.db.get_job(job_id)
-        if current is None or current.state in (JobState.DONE, JobState.ERROR,
-                                                JobState.CANCELLED):
+        # This probe races job completion, which finalizes files_total to the
+        # real downloaded count. The conditional UPDATE (active + still-unknown)
+        # makes a late probe a no-op instead of clobbering that real total.
+        if not await self.db.set_files_total_estimate(job_id, total):
             return
-        await self.db.update_job(job_id, files_total=total)
+        current = await self.db.get_job(job_id)
         self.hub.publish({"type": "progress", "job_id": job_id,
-                          "files_done": current.files_done, "current_file": None,
-                          "bytes_done": current.bytes_done, "bytes_per_sec": 0.0,
-                          "files_total": total})
+                          "files_done": current.files_done if current else 0,
+                          "current_file": None,
+                          "bytes_done": current.bytes_done if current else 0,
+                          "bytes_per_sec": 0.0, "files_total": total})
         log.info("job %d file count probed: %d", job_id, total)
 
     async def _backfill_titles(self) -> None:

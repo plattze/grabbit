@@ -173,6 +173,22 @@ class Database:
             f"UPDATE jobs SET {cols} WHERE id = ?", (*fields.values(), job_id))
         await self.conn.commit()
 
+    async def set_files_total_estimate(self, job_id: int, total: int) -> bool:
+        """Fill an unknown files_total for a still-active job; True if applied.
+
+        The up-front file-count probe races job completion, which finalizes
+        files_total to the real downloaded count. Guarding on both state =
+        'active' AND files_total = 0 at the SQL level means a probe that returns
+        after completion has written the real total (even before the DONE state
+        commit lands) is a no-op rather than clobbering it.
+        """
+        cur = await self.conn.execute(
+            "UPDATE jobs SET files_total = ?, updated_at = ?"
+            " WHERE id = ? AND state = ? AND files_total = 0",
+            (total, utcnow().isoformat(), job_id, JobState.ACTIVE.value))
+        await self.conn.commit()
+        return cur.rowcount > 0
+
     async def set_state(self, job_id: int, state: JobState, error: str | None = None) -> None:
         finished = utcnow().isoformat() if state in (
             JobState.DONE, JobState.ERROR, JobState.CANCELLED) else None

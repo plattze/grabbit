@@ -12,6 +12,12 @@ All notable changes to Grabbit are documented here. The format follows
   (Queue, API keys, Settings) rather than only the queue. It now reads as a
   standalone, ambient feature instead of part of the job list.
 
+### Fixed
+- The up-front file-count probe (0.2.16) could race a fast download's
+  completion and overwrite the real final `files_total` with its estimate.
+  The estimate now writes via a conditional SQL UPDATE that only fills a
+  still-unknown total on an active job, so completion always wins.
+
 ## [0.2.16] - 2026-07-18
 
 ### Added
