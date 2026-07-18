@@ -264,6 +264,30 @@ async def merge(req: MergeRequest, request: Request,
     return [await _get_job_or_404(request, j.id) for j in jobs]
 
 
+class ClearFinishedResult(BaseModel):
+    removed: int
+
+
+@router.post("/downloads/clear-finished", response_model=ClearFinishedResult)
+async def clear_finished(request: Request,
+                         key: ApiKeyInfo = Depends(require_submit)) -> ClearFinishedResult:
+    """Remove all finished (done/error/cancelled) downloads from history.
+
+    Pinned jobs are kept even when finished — their source is still monitored.
+    Active, queued, and paused jobs are untouched. Each removed job's staging
+    leftovers are cleaned up too.
+    """
+    st = _state(request)
+    ids = await st.db.delete_finished_unpinned()
+    for job_id in ids:
+        cleanup_staging(st.cfg, job_id)
+    for job_id in ids:
+        st.hub.publish({"type": "state", "job_id": job_id, "state": "removed"})
+    if ids:
+        log.info("cleared %d finished job(s)", len(ids))
+    return ClearFinishedResult(removed=len(ids))
+
+
 @router.delete("/downloads/{job_id}", status_code=204)
 async def cancel(job_id: int, request: Request,
                  key: ApiKeyInfo = Depends(require_submit)) -> None:

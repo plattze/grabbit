@@ -217,6 +217,22 @@ class Database:
         )
         return [_row_to_job(r) for r in await cur.fetchall()]
 
+    async def delete_finished_unpinned(self) -> list[int]:
+        """Remove every terminal (done/error/cancelled) job that isn't pinned.
+
+        Returns the ids removed so the caller can clean up their staging dirs.
+        Pinned jobs are kept even when finished — the source is still monitored.
+        """
+        terminal = (JobState.DONE.value, JobState.ERROR.value, JobState.CANCELLED.value)
+        cur = await self.conn.execute(
+            "SELECT id FROM jobs WHERE state IN (?, ?, ?) AND pinned = 0", terminal)
+        ids = [row["id"] for row in await cur.fetchall()]
+        if ids:
+            await self.conn.execute(
+                "DELETE FROM jobs WHERE state IN (?, ?, ?) AND pinned = 0", terminal)
+            await self.conn.commit()
+        return ids
+
     async def requeue_interrupted(self) -> int:
         """On startup: put jobs that were active when we died back in the queue."""
         cur = await self.conn.execute(

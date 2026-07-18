@@ -480,6 +480,25 @@ export default function App() {
     });
   }, [jobs, filter, sortKey, sortAsc]);
 
+  const clearableCount = useMemo(
+    () =>
+      jobs.filter(
+        (j) => !j.pinned && (j.state === "done" || j.state === "error" || j.state === "cancelled"),
+      ).length,
+    [jobs],
+  );
+
+  const clearFinished = async () => {
+    if (!window.confirm(`Remove ${clearableCount} finished download(s)? Pinned downloads are kept.`))
+      return;
+    try {
+      await api.clearFinished();
+    } catch {
+      /* surfaced by refresh */
+    }
+    void refresh();
+  };
+
   const clickHeader = (key: SortKey) => {
     if (sortKey === key) {
       // second click reverses; third returns to the default order
@@ -565,8 +584,16 @@ export default function App() {
               </button>
             ))}
             <button
-              className="linkish refresh"
+              className="linkish"
               style={{ marginLeft: "auto" }}
+              title="Remove all finished downloads (pinned downloads are kept)"
+              disabled={clearableCount === 0}
+              onClick={clearFinished}
+            >
+              Clear finished
+            </button>
+            <button
+              className="linkish refresh"
               title="Refresh the list"
               onClick={() => void refresh()}
             >

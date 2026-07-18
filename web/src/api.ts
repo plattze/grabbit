@@ -114,6 +114,8 @@ export const api = {
       body: JSON.stringify({ job_ids: jobIds, name }),
     }),
   remove: (id: number) => request<void>(`downloads/${id}`, { method: "DELETE" }),
+  clearFinished: () =>
+    request<{ removed: number }>("downloads/clear-finished", { method: "POST" }),
   stats: () => request<Stats>("stats"),
   settings: () => request<Settings>("settings"),
   listKeys: () => request<ApiKeyInfo[]>("keys"),

@@ -4,6 +4,16 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- "Clear finished" button on the queue view (new
+  `POST /api/downloads/clear-finished`): removes every finished
+  (done/error/cancelled) download from history in one action, cleaning up any
+  staging leftovers. Pinned downloads are kept even when finished — their source
+  is still monitored — and active/queued/paused jobs are untouched. The button
+  is disabled when there is nothing clearable and confirms before removing.
+
 ## [0.2.9] - 2026-07-18
 
 ### Changed
