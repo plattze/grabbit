@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from pathlib import Path
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -53,6 +54,21 @@ async def test_download_keeps_source_directory(mock_engine_binary, tmp_path):
     assert result.success
     assert not list(out.glob("*.jpg"))  # nothing flattened into dest itself
     assert len(list((out / "album").glob("*.jpg"))) == 3
+
+
+def test_keep_dirs_empties_category_to_drop_domain_level(mock_engine_binary):
+    """keep_dirs passes -o keywords={"category": ""} so gallery-dl, which drops
+    empty path segments, omits the leading {category}/domain directory level."""
+    engine = GalleryDLEngine(binary=mock_engine_binary)
+    args = engine._build_args("https://example.com/a", EngineOpts(dest=Path("/d")))
+    assert 'keywords={"category": ""}' in args
+
+
+def test_flatten_omitted_when_keep_dirs_off(mock_engine_binary):
+    engine = GalleryDLEngine(binary=mock_engine_binary)
+    args = engine._build_args(
+        "https://example.com/a", EngineOpts(dest=Path("/d"), keep_dirs=False))
+    assert not any("keywords=" in a for a in args)
 
 
 async def test_download_keeps_source_mtime_by_default(mock_engine_binary, tmp_path):

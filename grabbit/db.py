@@ -103,6 +103,17 @@ class Database:
             await self.conn.execute(
                 "ALTER TABLE jobs ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
 
+    async def get_schema_version(self) -> int:
+        """SQLite PRAGMA user_version — tracks one-time on-disk migrations."""
+        cur = await self.conn.execute("PRAGMA user_version")
+        row = await cur.fetchone()
+        return row[0] if row else 0
+
+    async def set_schema_version(self, version: int) -> None:
+        # PRAGMA doesn't take bound parameters; version is an int we control.
+        await self.conn.execute(f"PRAGMA user_version = {int(version)}")
+        await self.conn.commit()
+
     async def close(self) -> None:
         if self._conn:
             await self._conn.close()
@@ -176,6 +187,26 @@ class Database:
             "SELECT file_paths FROM jobs WHERE id = ?", (job_id,))
         row = await cur.fetchone()
         return json.loads(row["file_paths"]) if row else []
+
+    async def list_done_with_paths(self) -> list[tuple[int, str, str, list[str]]]:
+        """(id, dest, dir_name, file_paths) for every DONE job with a directory.
+
+        Used by the one-time flatten migration; file_paths is decoded from its
+        JSON column.
+        """
+        cur = await self.conn.execute(
+            "SELECT id, dest, dir_name, file_paths FROM jobs"
+            " WHERE state = ? AND dir_name != ''",
+            (JobState.DONE.value,),
+        )
+        out: list[tuple[int, str, str, list[str]]] = []
+        for row in await cur.fetchall():
+            try:
+                paths = json.loads(row["file_paths"])
+            except (ValueError, TypeError):
+                paths = []
+            out.append((row["id"], row["dest"], row["dir_name"], paths))
+        return out
 
     async def list_pinned_due(self, cutoff_iso: str) -> list[Job]:
         """Pinned jobs at rest whose last run finished at or before the cutoff."""

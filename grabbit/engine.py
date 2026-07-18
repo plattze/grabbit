@@ -112,6 +112,12 @@ class GalleryDLEngine:
         # which flattens everything into dest.
         dest_flag = "--destination" if opts.keep_dirs else "--directory"
         args = [self.binary, dest_flag, str(opts.dest), "--retries", str(opts.retries)]
+        if opts.keep_dirs:
+            # Every extractor's directory template leads with {category} (the
+            # site/domain). Empty it via keywords so gallery-dl — which drops
+            # empty path segments — writes dest/<package>/… instead of
+            # dest/<domain>/<package>/…, keeping only the meaningful level.
+            args += ["-o", 'keywords={"category": ""}']
         if opts.rate_limit:
             args += ["--limit-rate", opts.rate_limit]
         if opts.cookies_file:

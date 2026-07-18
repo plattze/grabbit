@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
 import logging
 import os
 import shutil
@@ -122,6 +123,55 @@ def _move_tree(src: Path, dst: Path) -> None:
         except OSError:
             shutil.move(str(path), str(target))
     shutil.rmtree(src, ignore_errors=True)
+
+
+# Bump when adding a one-time on-disk migration guarded by PRAGMA user_version.
+# 1: flatten the domain-level parent out of the download layout (item 014).
+SCHEMA_VERSION = 1
+
+
+async def migrate_flatten_domain_dirs(cfg: Config, db: Database) -> int:
+    """One-time: drop the domain-level parent from finished two-level jobs.
+
+    Old layout put files under dest/<domain>/<package>/…; the flatten change
+    (item 014) makes gallery-dl write dest/<package>/… directly. This brings
+    existing DONE jobs in line, driven purely from DB records — never a dest
+    scan — so non-Grabbit directories are never touched.
+
+    Migrates only jobs whose recorded file_paths still lead with dir_name and
+    carry a package level beneath it (>=3 parts). A user-renamed job's dir_name
+    diverges from its (unrewritten) file_paths, so it is left untouched; so are
+    already-flat one-level jobs. Returns the number of jobs migrated.
+    """
+    if await db.get_schema_version() >= SCHEMA_VERSION:
+        return 0
+    migrated = 0
+    for job_id, dest, dir_name, file_paths in await db.list_done_with_paths():
+        parts_list = [Path(p).parts for p in file_paths]
+        # Every path must be <domain>/<package>/…file with domain == dir_name.
+        if not parts_list or not all(
+                len(p) >= 3 and p[0] == dir_name for p in parts_list):
+            continue
+        base = cfg.downloads.dest / dest if dest else cfg.downloads.dest
+        domain_dir = base / dir_name
+        packages = dict.fromkeys(p[1] for p in parts_list)  # ordered, unique
+        for pkg in packages:
+            src_pkg = domain_dir / pkg
+            if src_pkg.is_dir():
+                await asyncio.to_thread(merge_dirs, [src_pkg], base / pkg)
+        # Strip the leading domain component from every recorded path.
+        new_paths = [str(Path(*p[1:])) for p in parts_list]
+        await db.update_job(job_id, dir_name=next(iter(packages)),
+                            file_paths=json.dumps(new_paths))
+        if domain_dir.is_dir():
+            with contextlib.suppress(OSError):
+                domain_dir.rmdir()  # only removes it when empty
+        migrated += 1
+        log.info("job %d flattened: dropped domain dir %r", job_id, dir_name)
+    await db.set_schema_version(SCHEMA_VERSION)
+    if migrated:
+        log.info("flatten migration: %d job(s) updated", migrated)
+    return migrated
 
 
 class WorkerPool:

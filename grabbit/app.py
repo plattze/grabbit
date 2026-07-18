@@ -19,7 +19,7 @@ from .engine import GalleryDLEngine
 from .events import EventHub
 from .logging_setup import setup_logging
 from .models import JobState
-from .worker import WorkerPool
+from .worker import WorkerPool, migrate_flatten_domain_dirs
 
 log = logging.getLogger(__name__)
 
@@ -54,6 +54,10 @@ def create_app(cfg: Config | None = None, engine=None) -> FastAPI:
         app.state.hub = hub
         app.state.workers = workers
         app.state.rate_limiter = RateLimiter()
+
+        # One-time layout migration before the queue runs or the API serves,
+        # so no job or request races the on-disk moves.
+        await migrate_flatten_domain_dirs(cfg, db)
 
         await workers.start()
         log.info("grabbit %s started (engine channel: %s)", __version__, cfg.engine.channel)

@@ -4,6 +4,21 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- Downloads now land directly in their package directory (`dest/<package>/…`)
+  instead of under a redundant site/domain parent (`dest/<domain>/<package>/…`).
+  The domain level added no value. Implemented by emptying gallery-dl's
+  `{category}` directory segment (it drops empty path segments), so files are
+  written to the flattened path directly — pinned rechecks' skip-existing still
+  works. A one-time startup migration flattens existing finished downloads,
+  driven from the database (never a destination scan): it merges each
+  `dest/<domain>/<package>` up into `dest/<package>` (reusing the rename/merge
+  collision handling), updates the affected job records, and removes the emptied
+  domain directory. User-renamed and already-flat jobs are left untouched, and
+  the migration runs once (guarded by the SQLite schema version).
+
 ## [0.2.7] - 2026-07-12
 
 ### Changed

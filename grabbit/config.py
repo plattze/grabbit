@@ -28,8 +28,9 @@ class DownloadsConfig(BaseModel):
     max_per_host: int = 2
     filename_template: str | None = None
     cookies_file: Path | None = None
-    # Preserve the source's directory structure (album/gallery names) under
-    # dest instead of flattening every file into it.
+    # Preserve the source's package directory (album/gallery name) under dest
+    # instead of flattening every file into it. The site/domain level above the
+    # package is always dropped, so downloads land in dest/<package>/….
     keep_dirs: bool = True
     # How often pinned jobs re-check their source for new files (minutes).
     pin_recheck_minutes: float = 60
