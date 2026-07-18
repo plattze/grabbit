@@ -683,10 +683,12 @@ export default function App() {
               </table>
             </div>
           )}
-
-          <InstallExtension />
         </>
       )}
+
+      <footer className="app-footer">
+        <InstallExtension />
+      </footer>
     </div>
   );
 }

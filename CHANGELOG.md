@@ -4,6 +4,14 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- The Chrome-extension callout moved from beneath the downloads table into a
+  dedicated page footer, separated by a top border and shown on every view
+  (Queue, API keys, Settings) rather than only the queue. It now reads as a
+  standalone, ambient feature instead of part of the job list.
+
 ## [0.2.16] - 2026-07-18
 
 ### Added

@@ -216,6 +216,11 @@ table.keys th { color: var(--muted); font-weight: 500; }
 
 .empty { color: var(--muted); text-align: center; padding: 2rem 0; }
 
+.app-footer {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #303a45;
+}
 .install-ext { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
 .install-ext .hint { flex-basis: 100%; margin: 0; color: var(--muted); font-size: 0.85rem; }
 
