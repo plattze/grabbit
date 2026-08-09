@@ -311,8 +311,9 @@ class WorkerPool:
         except Exception:
             log.debug("title resolve errored for job %d", job_id, exc_info=True)
             return
-        if title:
-            await self.db.update_job(job_id, title=title)
+        # Guarded write: a manual rename during the (slow) probe sets the
+        # title to the user's chosen name, which must not be clobbered here.
+        if title and await self.db.set_title_if_missing(job_id, title):
             self.hub.publish({"type": "state", "job_id": job_id,
                               "state": job.state.value, "title": title})
             log.info("job %d title resolved: %r", job_id, title)

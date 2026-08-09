@@ -189,6 +189,22 @@ class Database:
         await self.conn.commit()
         return cur.rowcount > 0
 
+    async def set_title_if_missing(self, job_id: int, title: str) -> bool:
+        """Fill an unset title; True if applied.
+
+        The background title probe races a manual rename, which sets the title
+        to the chosen directory name. The probe reads job.title before its
+        (slow) source enumeration, so guarding at the SQL level means a probe
+        that returns after a rename has set the title is a no-op rather than
+        clobbering the user's choice.
+        """
+        cur = await self.conn.execute(
+            "UPDATE jobs SET title = ?, updated_at = ?"
+            " WHERE id = ? AND (title IS NULL OR title = '')",
+            (title, utcnow().isoformat(), job_id))
+        await self.conn.commit()
+        return cur.rowcount > 0
+
     async def set_state(self, job_id: int, state: JobState, error: str | None = None) -> None:
         finished = utcnow().isoformat() if state in (
             JobState.DONE, JobState.ERROR, JobState.CANCELLED) else None

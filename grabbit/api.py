@@ -183,18 +183,23 @@ def _validate_dir_name(name: str) -> str:
 @router.post("/downloads/{job_id}/rename", response_model=Job)
 async def rename(job_id: int, req: RenameRequest, request: Request,
                  key: ApiKeyInfo = Depends(require_submit)) -> Job:
-    """Rename a job's output directory.
+    """Rename a job's output directory (and its display title).
 
     Running job: recorded and applied when the download completes (the engine
     process and the staging move both keep writing to the original name).
     Finished job: the directory is renamed on disk immediately.
+
+    The display title is set to the chosen name too — a manual rename is a
+    stronger signal of the wanted display name than a scraped source title.
+    Only here: merge deliberately leaves each job's own title alone, and the
+    deferred-rename mechanism it shares with the pin recheck never sets one.
     """
     st = _state(request)
     name = _validate_dir_name(req.name)
     job = await _get_job_or_404(request, job_id)
 
     if job.state in (JobState.QUEUED, JobState.ACTIVE, JobState.PAUSED):
-        await st.db.update_job(job_id, rename_to=name)
+        await st.db.update_job(job_id, rename_to=name, title=name)
         return await _get_job_or_404(request, job_id)
 
     base = st.cfg.downloads.dest / job.dest if job.dest else st.cfg.downloads.dest
@@ -208,14 +213,16 @@ async def rename(job_id: int, req: RenameRequest, request: Request,
             raise HTTPException(status_code=409,
                                 detail="job has no output directory to rename")
         await asyncio.to_thread(gather_into_dir, base, existing, base / name)
-        await st.db.update_job(job_id, dir_name=name)
+        await st.db.update_job(job_id, dir_name=name, title=name)
     elif name != job.dir_name:
         src = base / job.dir_name
         if not src.is_dir():
             raise HTTPException(status_code=409,
                                 detail=f"directory no longer exists: {job.dir_name}")
         await asyncio.to_thread(rename_dir, src, base / name)
-        await st.db.update_job(job_id, dir_name=name)
+        await st.db.update_job(job_id, dir_name=name, title=name)
+    else:
+        await st.db.update_job(job_id, title=name)
     return await _get_job_or_404(request, job_id)
 
 

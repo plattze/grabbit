@@ -52,6 +52,25 @@ async def test_merge_into_first_jobs_own_directory(client, submit_key, cfg):
     assert not (cfg.downloads.dest / "Absorb").exists()
 
 
+async def test_merge_keeps_individual_titles(client, submit_key, cfg):
+    """Merging shares a directory but each job keeps its own resolved title —
+    unlike rename, merge does not adopt the folder name as the display title."""
+    a = await _done_job(client, submit_key, "https://example.com/one")
+    await client.post(f"/api/downloads/{a}/rename", json={"name": "Part 1"},
+                      headers=auth(submit_key))
+    b = await _done_job(client, submit_key, "https://example.com/two")
+    await client.post(f"/api/downloads/{b}/rename", json={"name": "Part 2"},
+                      headers=auth(submit_key))
+
+    r = await client.post("/api/downloads/merge",
+                          json={"job_ids": [a, b], "name": "Combined"},
+                          headers=auth(submit_key))
+    assert r.status_code == 200
+    body = {j["id"]: j for j in r.json()}
+    assert body[a]["dir_name"] == "Combined" and body[a]["title"] == "Part 1"
+    assert body[b]["dir_name"] == "Combined" and body[b]["title"] == "Part 2"
+
+
 async def test_merge_rejects_single_job(client, submit_key):
     a = await _done_job(client, submit_key, "https://example.com/one")
     r = await client.post("/api/downloads/merge",

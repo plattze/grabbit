@@ -42,6 +42,30 @@ async def test_rename_after_completion_moves_directory(client, submit_key, cfg):
     assert len(list((cfg.downloads.dest / "My Album").glob("*.jpg"))) == 3
 
 
+async def test_rename_sets_title(client, submit_key, cfg):
+    """A manual rename overrides the resolved title with the chosen name."""
+    job_id = await _submit(client, submit_key)
+    await wait_for_state(client, submit_key, job_id, "done")
+
+    r = await client.post(f"/api/downloads/{job_id}/rename",
+                          json={"name": "My Album"}, headers=auth(submit_key))
+    assert r.status_code == 200
+    assert r.json()["title"] == "My Album"
+
+
+async def test_rename_to_same_dir_name_still_sets_title(client, submit_key, cfg):
+    """Renaming to the current directory name is a no-op on disk but still
+    adopts the name as the display title."""
+    job_id = await _submit(client, submit_key)
+    job = await wait_for_state(client, submit_key, job_id, "done")
+
+    r = await client.post(f"/api/downloads/{job_id}/rename",
+                          json={"name": job["dir_name"]}, headers=auth(submit_key))
+    assert r.status_code == 200
+    assert r.json()["title"] == job["dir_name"]
+    assert r.json()["dir_name"] == job["dir_name"]
+
+
 async def test_rename_during_download_applies_at_completion(client, submit_key, cfg):
     job_id = await _submit(client, submit_key, SLOW_URL)
 
@@ -49,10 +73,12 @@ async def test_rename_during_download_applies_at_completion(client, submit_key, 
                           json={"name": "Renamed Live"}, headers=auth(submit_key))
     assert r.status_code == 200
     assert r.json()["rename_to"] == "Renamed Live"
+    assert r.json()["title"] == "Renamed Live"  # title adopts the name at once
 
     job = await wait_for_state(client, submit_key, job_id, "done", timeout=30.0)
     assert job["dir_name"] == "Renamed Live"
     assert job["rename_to"] is None
+    assert job["title"] == "Renamed Live"  # not clobbered by the title probe
     assert not (cfg.downloads.dest / "album").exists()
     assert list((cfg.downloads.dest / "Renamed Live").glob("*.jpg"))
 

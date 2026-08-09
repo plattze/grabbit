@@ -4,6 +4,16 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- Renaming a download now also sets its display title to the chosen name —
+  previously only the on-disk directory changed and the Title column kept
+  showing the scraped source title. A manual rename is a stronger signal of
+  the wanted display name, and it wins even if the background title probe
+  finishes afterwards. Merge is unaffected: merged jobs share a directory but
+  each keeps its own title.
+
 ## [0.2.18] - 2026-07-18
 
 ### Changed
