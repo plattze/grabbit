@@ -31,7 +31,9 @@ CREATE TABLE IF NOT EXISTS jobs (
     rename_to TEXT,
     file_paths TEXT NOT NULL DEFAULT '[]',
     pinned INTEGER NOT NULL DEFAULT 0,
-    title TEXT
+    title TEXT,
+    group_id INTEGER,
+    group_name TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_state ON jobs(state);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_url_open ON jobs(url)
@@ -66,6 +68,7 @@ def _row_to_job(row: aiosqlite.Row) -> Job:
         dir_name=row["dir_name"], rename_to=row["rename_to"],
         pinned=bool(row["pinned"]),
         title=row["title"],
+        group_id=row["group_id"], group_name=row["group_name"],
     )
 
 
@@ -106,6 +109,10 @@ class Database:
                 "ALTER TABLE jobs ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
         if "title" not in cols:
             await self.conn.execute("ALTER TABLE jobs ADD COLUMN title TEXT")
+        if "group_id" not in cols:
+            await self.conn.execute("ALTER TABLE jobs ADD COLUMN group_id INTEGER")
+        if "group_name" not in cols:
+            await self.conn.execute("ALTER TABLE jobs ADD COLUMN group_name TEXT")
 
     async def get_schema_version(self) -> int:
         """SQLite PRAGMA user_version — tracks one-time on-disk migrations."""
@@ -171,6 +178,17 @@ class Database:
         cols = ", ".join(f"{k} = ?" for k in fields)
         await self.conn.execute(
             f"UPDATE jobs SET {cols} WHERE id = ?", (*fields.values(), job_id))
+        await self.conn.commit()
+
+    async def set_group_name(self, group_id: int, name: str) -> None:
+        """Rename a merge group on every member.
+
+        A merge that extends an existing group renames the whole group, so
+        members from the earlier merge don't keep a stale group_name.
+        """
+        await self.conn.execute(
+            "UPDATE jobs SET group_name = ?, updated_at = ? WHERE group_id = ?",
+            (name, utcnow().isoformat(), group_id))
         await self.conn.commit()
 
     async def set_files_total_estimate(self, job_id: int, total: int) -> bool:

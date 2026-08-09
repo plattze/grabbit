@@ -20,6 +20,8 @@ export interface Job {
   rename_to: string | null;
   pinned: boolean;
   title: string | null;
+  group_id: number | null;
+  group_name: string | null;
 }
 
 export interface SubmitResult {

@@ -244,12 +244,14 @@ function JobRow({
   selected,
   onSelect,
   speed,
+  member,
 }: {
   job: Job;
   onChanged: () => void;
   selected?: boolean;
   onSelect?: (checked: boolean) => void;
   speed?: number;
+  member?: boolean; // rendered inside an expanded package row
 }) {
   const [renaming, setRenaming] = useState(false);
   const [newName, setNewName] = useState("");
@@ -280,9 +282,12 @@ function JobRow({
   const pct =
     job.files_total > 0 ? Math.min(100, (job.files_done / job.files_total) * 100) : null;
   const hasExtra = renaming || Boolean(renameError) || Boolean(job.error);
+  const rowClass =
+    [member ? "member" : "", hasExtra ? "has-extra" : ""].filter(Boolean).join(" ") ||
+    undefined;
   return (
     <>
-      <tr className={hasExtra ? "has-extra" : undefined}>
+      <tr className={rowClass}>
         <td className="select">
           {onSelect && (
             <input
@@ -382,6 +387,120 @@ function JobRow({
           </td>
         </tr>
       )}
+    </>
+  );
+}
+
+// A merged "package": one row aggregating its member jobs, expandable.
+const GROUP_STATE_ORDER: JobState[] = [
+  "active",
+  "queued",
+  "paused",
+  "error",
+  "done",
+  "cancelled",
+];
+
+function groupState(members: Job[]): JobState {
+  // The most "alive" member state represents the package.
+  for (const s of GROUP_STATE_ORDER) {
+    if (members.some((j) => j.state === s)) return s;
+  }
+  return members[0].state;
+}
+
+function GroupRow({
+  name,
+  members,
+  onChanged,
+  selected,
+  onSelect,
+  speeds,
+}: {
+  name: string;
+  members: Job[];
+  onChanged: () => void;
+  selected: boolean;
+  onSelect: (checked: boolean) => void;
+  speeds: Record<number, number>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const state = groupState(members);
+  const filesDone = members.reduce((n, j) => n + j.files_done, 0);
+  const filesTotal = members.reduce((n, j) => n + j.files_total, 0);
+  const speed = members.reduce((n, j) => n + (speeds[j.id] ?? 0), 0);
+  const pct = filesTotal > 0 ? Math.min(100, (filesDone / filesTotal) * 100) : null;
+  const dir = members.find((j) => j.dir_name)?.dir_name ?? "";
+  const pendingDir = members.find((j) => j.rename_to)?.rename_to ?? null;
+  const hosts = [...new Set(members.map((j) => j.host))];
+  const created = members.reduce((a, j) => (j.created_at < a ? j.created_at : a),
+    members[0].created_at);
+  const finished = members.every((j) => j.finished_at)
+    ? members.reduce<string>((a, j) => (j.finished_at! > a ? j.finished_at! : a), "")
+    : null;
+  const pinned = members.some((j) => j.pinned);
+  return (
+    <>
+      <tr className="group">
+        <td className="select">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={(e) => onSelect(e.target.checked)}
+            title="Select to merge into one folder"
+          />
+        </td>
+        <td className="title" title={name}>
+          <button
+            className="linkish expand"
+            onClick={() => setExpanded(!expanded)}
+            title={expanded ? "Collapse" : `Show the ${members.length} merged downloads`}
+          >
+            {expanded ? "▾" : "▸"}
+          </button>{" "}
+          {pinned && <span title="Pinned — a source is monitored for new files">📌 </span>}
+          {name} <span className="muted">({members.length})</span>
+        </td>
+        <td className="url">
+          <span className="muted">
+            {members.length} URL{members.length === 1 ? "" : "s"}
+          </span>
+        </td>
+        <td>{hosts.length === 1 ? hosts[0] : `${hosts.length} hosts`}</td>
+        <td>
+          <span className={`badge ${state}`}>{state}</span>
+          {state === "active" && (
+            <span className="active-meta">
+              {pct !== null && <span className="pct">{Math.round(pct)}%</span>}
+              {speed > 0 && <span className="speed">{fmtBytes(speed)}/s</span>}
+            </span>
+          )}
+        </td>
+        <td className="num">
+          {filesDone > 0
+            ? `${filesDone}${filesTotal > 0 ? ` / ${filesTotal}` : ""}`
+            : "—"}
+        </td>
+        <td className="dir" title={dir || undefined}>
+          {dir || "—"}
+          {pendingDir && pendingDir !== dir && (
+            <span className="pending-rename"> → {pendingDir}</span>
+          )}
+        </td>
+        <td className="date">{fmtDate(created)}</td>
+        <td className="date">{fmtDate(finished)}</td>
+        <td className="actions" />
+      </tr>
+      {expanded &&
+        members.map((job) => (
+          <JobRow
+            key={job.id}
+            job={job}
+            onChanged={onChanged}
+            speed={speeds[job.id]}
+            member
+          />
+        ))}
     </>
   );
 }
@@ -509,6 +628,36 @@ export default function App() {
       return sortAsc ? cmp : -cmp;
     });
   }, [jobs, filter, sortKey, sortAsc]);
+
+  // One row per merge group ("package"), positioned where its first member
+  // appears in the sorted order; ungrouped jobs render as plain rows.
+  type Row =
+    | { kind: "job"; job: Job }
+    | { kind: "group"; groupId: number; name: string; members: Job[] };
+  const rows = useMemo<Row[]>(() => {
+    const out: Row[] = [];
+    const groups = new Map<number, Job[]>();
+    for (const job of visible) {
+      if (job.group_id === null) {
+        out.push({ kind: "job", job });
+        continue;
+      }
+      const members = groups.get(job.group_id);
+      if (members) {
+        members.push(job);
+      } else {
+        const created: Job[] = [job];
+        groups.set(job.group_id, created);
+        out.push({
+          kind: "group",
+          groupId: job.group_id,
+          name: job.group_name ?? "Merged",
+          members: created,
+        });
+      }
+    }
+    return out;
+  }, [visible]);
 
   const clearableCount = useMemo(
     () =>
@@ -662,20 +811,41 @@ export default function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map((job) => (
-                    <JobRow
-                      key={job.id}
-                      job={job}
-                      onChanged={scheduleRefresh}
-                      speed={speeds[job.id]}
-                      selected={selectedIds.includes(job.id)}
-                      onSelect={(checked) =>
-                        setSelectedIds((prev) =>
-                          checked ? [...prev, job.id] : prev.filter((i) => i !== job.id),
-                        )
-                      }
-                    />
-                  ))}
+                  {rows.map((row) =>
+                    row.kind === "group" ? (
+                      <GroupRow
+                        key={`g${row.groupId}`}
+                        name={row.name}
+                        members={row.members}
+                        onChanged={scheduleRefresh}
+                        speeds={speeds}
+                        selected={row.members.every((j) => selectedIds.includes(j.id))}
+                        onSelect={(checked) => {
+                          const ids = row.members.map((j) => j.id);
+                          setSelectedIds((prev) =>
+                            checked
+                              ? [...prev, ...ids.filter((i) => !prev.includes(i))]
+                              : prev.filter((i) => !ids.includes(i)),
+                          );
+                        }}
+                      />
+                    ) : (
+                      <JobRow
+                        key={row.job.id}
+                        job={row.job}
+                        onChanged={scheduleRefresh}
+                        speed={speeds[row.job.id]}
+                        selected={selectedIds.includes(row.job.id)}
+                        onSelect={(checked) =>
+                          setSelectedIds((prev) =>
+                            checked
+                              ? [...prev, row.job.id]
+                              : prev.filter((i) => i !== row.job.id),
+                          )
+                        }
+                      />
+                    ),
+                  )}
                 </tbody>
               </table>
             </div>

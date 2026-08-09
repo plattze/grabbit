@@ -234,15 +234,20 @@ class MergeRequest(BaseModel):
 @router.post("/downloads/merge", response_model=list[Job])
 async def merge(req: MergeRequest, request: Request,
                 key: ApiKeyInfo = Depends(require_submit)) -> list[Job]:
-    """Merge several downloads into one shared directory, regardless of status.
+    """Merge several downloads into one shared directory and one queue row.
 
     Finished jobs have their files moved into dest/<name> now (created if
     needed; filename collisions get a " (2)" suffix). Jobs that haven't
     finished downloading yet — queued, active, paused, errored, cancelled — are
     marked to land in dest/<name> when they (eventually) complete, reusing the
     same deferred-rename path a live rename uses. So even a set of not-yet-
-    started downloads converges into one directory. The original job records
-    stay in history, all pointing at the merged directory.
+    started downloads converges into one directory.
+
+    All merged jobs join one group (models.Job.group_id) named after the merge:
+    the UI shows the group as a single "package" row with aggregated progress,
+    expandable into its members. Members stay independent job records — retry,
+    pause and cancel still work per URL, and each keeps its own title. Merging
+    a job that is already grouped extends that group.
     """
     st = _state(request)
     name = _validate_dir_name(req.name)
@@ -250,6 +255,11 @@ async def merge(req: MergeRequest, request: Request,
         raise HTTPException(status_code=400, detail="duplicate job ids")
 
     jobs = [await _get_job_or_404(request, job_id) for job_id in req.job_ids]
+
+    # One group for everything merged: reuse the first existing group id among
+    # the members (extending that group), else mint one from the first job's id
+    # (job ids are unique, so a fresh group can never collide with another).
+    group_id = next((j.group_id for j in jobs if j.group_id is not None), jobs[0].id)
 
     def base(job: Job) -> Path:
         return st.cfg.downloads.dest / job.dest if job.dest else st.cfg.downloads.dest
@@ -280,14 +290,20 @@ async def merge(req: MergeRequest, request: Request,
 
     for job in jobs:
         if job.state == JobState.DONE:
-            await st.db.update_job(job.id, dir_name=name, dest=target_dest)
+            await st.db.update_job(job.id, dir_name=name, dest=target_dest,
+                                   group_id=group_id, group_name=name)
         else:
             # Not finished yet: defer — the download lands in <its dest>/<name>
             # when it completes (via WorkerPool._apply_pending_rename). dest is
             # left as-is: an active job is already downloading against it, and
             # touching it would desync the record from where the worker lands
             # the files. With the usual empty dest this equals the merge target.
-            await st.db.update_job(job.id, rename_to=name)
+            await st.db.update_job(job.id, rename_to=name,
+                                   group_id=group_id, group_name=name)
+        st.hub.publish({"type": "state", "job_id": job.id, "state": job.state.value})
+    # Extending an existing group renames it: members from the earlier merge
+    # that weren't part of this request must not keep the stale name.
+    await st.db.set_group_name(group_id, name)
     return [await _get_job_or_404(request, j.id) for j in jobs]
 
 

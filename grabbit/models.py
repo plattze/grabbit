@@ -43,6 +43,11 @@ class Job(BaseModel):
     # for display only — the on-disk directory name (dir_name) is unaffected.
     # None until resolved; may stay None when the source exposes no title.
     title: str | None = None
+    # Merge group ("package"): jobs merged together share a group_id and show
+    # as a single row titled group_name (the name entered at merge time).
+    # Members stay independent jobs — pause/retry/cancel still work per URL.
+    group_id: int | None = None
+    group_name: str | None = None
 
 
 class SubmitRequest(BaseModel):

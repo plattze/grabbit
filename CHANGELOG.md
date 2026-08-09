@@ -4,6 +4,17 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- Merging downloads now produces a single "package" row in the queue instead
+  of leaving one row per job. Merged jobs join a named group (the name entered
+  at merge time); the UI shows one row per group with aggregated progress,
+  file counts, and download speed, expandable to reveal the member downloads —
+  which remain independent jobs (pause/retry/cancel per URL still work, and
+  each keeps its own title). Merging into an already-merged download extends
+  and renames that group.
+
 ## [0.2.19] - 2026-08-09
 
 ### Changed

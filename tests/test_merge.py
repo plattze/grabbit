@@ -71,6 +71,56 @@ async def test_merge_keeps_individual_titles(client, submit_key, cfg):
     assert body[b]["dir_name"] == "Combined" and body[b]["title"] == "Part 2"
 
 
+async def test_merge_forms_named_group(client, submit_key):
+    """Merged jobs join one group named after the merge — the UI's package row."""
+    a = await _done_job(client, submit_key, "https://example.com/one")
+    b = await _done_job(client, submit_key, "https://example.com/two")
+    r = await client.post("/api/downloads/merge",
+                          json={"job_ids": [a, b], "name": "Pack"},
+                          headers=auth(submit_key))
+    assert r.status_code == 200
+    body = r.json()
+    assert all(j["group_name"] == "Pack" for j in body)
+    ids = {j["group_id"] for j in body}
+    assert len(ids) == 1 and ids != {None}
+
+
+async def test_merge_extends_existing_group(client, submit_key):
+    """Merging more jobs into a grouped one joins (and renames) that group."""
+    a = await _done_job(client, submit_key, "https://example.com/one")
+    b = await _done_job(client, submit_key, "https://example.com/two")
+    r = await client.post("/api/downloads/merge",
+                          json={"job_ids": [a, b], "name": "Pack"},
+                          headers=auth(submit_key))
+    group_id = r.json()[0]["group_id"]
+
+    c = await _done_job(client, submit_key, "https://example.com/three")
+    r = await client.post("/api/downloads/merge",
+                          json={"job_ids": [b, c], "name": "Bigger"},
+                          headers=auth(submit_key))
+    assert r.status_code == 200
+    assert all(j["group_id"] == group_id for j in r.json())
+    # The whole group is renamed — including member `a`, absent from the
+    # second request, which must not keep the stale name.
+    r = await client.get(f"/api/downloads/{a}", headers=auth(submit_key))
+    assert r.json()["group_name"] == "Bigger"
+
+
+async def test_merge_unfinished_jobs_grouped_immediately(client, submit_key):
+    """Deferred (not-yet-finished) members still join the group right away."""
+    r = await client.post("/api/downloads",
+                          json={"urls": ["https://example.com/slow/x",
+                                         "https://example.com/slow/y"]},
+                          headers=auth(submit_key))
+    ids = [row["job_id"] for row in r.json()]
+    r = await client.post("/api/downloads/merge",
+                          json={"job_ids": ids, "name": "Later"},
+                          headers=auth(submit_key))
+    assert r.status_code == 200
+    assert all(j["group_name"] == "Later" and j["group_id"] is not None
+               for j in r.json())
+
+
 async def test_merge_rejects_single_job(client, submit_key):
     a = await _done_job(client, submit_key, "https://example.com/one")
     r = await client.post("/api/downloads/merge",

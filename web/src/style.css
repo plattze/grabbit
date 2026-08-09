@@ -149,6 +149,13 @@ table.jobtable tr.extra td {
   overflow: visible;
 }
 table.jobtable tr:last-child td { border-bottom: none; }
+/* Merged package: the group row and its expanded member rows. */
+table.jobtable td.title .expand {
+  padding: 0 0.25rem 0 0;
+  font-size: 0.85rem;
+}
+table.jobtable tr.member td { background: rgba(255, 255, 255, 0.02); }
+table.jobtable tr.member td.title { padding-left: 1.6rem; }
 .jobtable .error {
   color: var(--err);
   font-size: 0.8rem;
