@@ -66,6 +66,36 @@ def test_extract_title_falls_back_to_url_meta():
     assert GalleryDLEngine._extract_title(dump) == "just-a-title"
 
 
+async def test_resolve_title_single_file_uses_own_name(mock_engine_binary):
+    # A single-file media link is titled by the file itself, not the parent
+    # album — otherwise the file job and its album job look like duplicates.
+    engine = GalleryDLEngine(binary=mock_engine_binary)
+    assert await engine.resolve_title("https://example.com/f/abc123") == "clip"
+
+
+def test_extract_title_single_file_prefers_file_name():
+    dump = (b'[[2, {"album_name": "Kay Carter", "count": 1}],'
+            b' [3, "u", {"album_name": "Kay Carter", "count": 1,'
+            b' "name": "gF1zYRyCmLXw2"}]]')
+    assert GalleryDLEngine._extract_title(dump) == "gF1zYRyCmLXw2"
+
+
+def test_extract_title_single_file_falls_back_to_album():
+    # count == 1 but the Url metadata has no usable file name: keep album_name.
+    dump = (b'[[2, {"album_name": "Kay Carter", "count": 1}],'
+            b' [3, "u", {"album_name": "Kay Carter", "count": 1}]]')
+    assert GalleryDLEngine._extract_title(dump) == "Kay Carter"
+
+
+def test_extract_title_multi_file_keeps_album_name():
+    # --range 1 leaves one Url message even for a large album; the extractor's
+    # count tells them apart, so the album keeps its own name.
+    dump = (b'[[2, {"album_name": "Kay Carter", "count": 8}],'
+            b' [3, "u", {"album_name": "Kay Carter", "count": 8,'
+            b' "name": "file1"}]]')
+    assert GalleryDLEngine._extract_title(dump) == "Kay Carter"
+
+
 def test_extract_title_handles_garbage():
     assert GalleryDLEngine._extract_title(b"not json") is None
     assert GalleryDLEngine._extract_title(b"{}") is None

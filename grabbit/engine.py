@@ -68,6 +68,12 @@ class DownloadResult:
 _TITLE_KEYS = ("album_name", "title", "gallery_title", "playlist_title",
                "board_title", "subject", "name")
 
+# For a single-file source, the file's own name is the title. Container keys
+# like album_name are deliberately absent: media extractors carry the *parent*
+# album's name in the file metadata, which would title a file job identically
+# to its parent album job — two distinct rows looking like duplicates.
+_FILE_TITLE_KEYS = ("title", "name", "filename")
+
 
 class Engine(Protocol):
     def supports(self, url: str) -> bool: ...
@@ -162,7 +168,8 @@ class GalleryDLEngine:
 
         Output is a JSON list of messages: [2, meta] (Directory) and
         [3, url, meta] (Url). Directory metadata is preferred (it carries the
-        album/gallery name); Url metadata is the fallback.
+        album/gallery name); Url metadata is the fallback — except for a
+        single-file source, where the file's own name wins (see below).
         """
         try:
             data = json.loads(dump_json)
@@ -179,7 +186,20 @@ class GalleryDLEngine:
                 dir_meta.append(entry[1])
             elif entry[0] == 3 and len(entry) >= 3 and isinstance(entry[2], dict):
                 url_meta.append(entry[2])
-        for meta in (*dir_meta, *url_meta):
+        metas = (*dir_meta, *url_meta)
+        # Single-file source (e.g. a bunkr /f/… link): prefer the file's own
+        # name. Media extractors carry the *parent* album's name in album_name,
+        # so a file job and its parent album job would otherwise show the same
+        # title and read as duplicates. Detected via the extractor's own item
+        # total (`count`) — the probe's --range 1 truncates the Url messages,
+        # so their number can't tell a single file from a large album.
+        if any(m.get("count") == 1 for m in metas):
+            for meta in url_meta:
+                for key in _FILE_TITLE_KEYS:
+                    value = meta.get(key)
+                    if isinstance(value, str) and value.strip():
+                        return value.strip()
+        for meta in metas:
             for key in _TITLE_KEYS:
                 value = meta.get(key)
                 if isinstance(value, str) and value.strip():

@@ -4,6 +4,15 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- A single-file download (e.g. a bunkr `/f/…` media link) was titled with its
+  *parent album's* name, so the file and the album showed identical titles and
+  looked like duplicate rows. When the source resolves to exactly one file
+  (per the extractor's item count), the title now comes from the file's own
+  name; multi-file albums keep using the album name.
+
 ## [0.2.20] - 2026-08-09
 
 ### Changed

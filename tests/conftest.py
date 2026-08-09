@@ -29,6 +29,13 @@ if "--dump-json" in args:
         # metadata probe fails the same way a download would
         print("error: extractor blew up", file=sys.stderr)
         sys.exit(4)
+    elif "/f/" in url:
+        # Single-file media link, like bunkr's media extractor: metadata still
+        # carries the *parent* album's name, plus the file's own name and the
+        # extractor's item total (count == 1).
+        print('[[2, {"album_name": "Phone1", "count": 1}],'
+              ' [3, "%s/clip.mp4", {"album_name": "Phone1", "count": 1,'
+              ' "name": "clip", "filename": "clip", "extension": "mp4"}]]' % url)
     else:
         # Directory message (type 2) carries the album_name, like real
         # gallery-dl; a Url message (type 3) follows with the file.
