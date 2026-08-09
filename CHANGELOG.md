@@ -4,7 +4,7 @@ All notable changes to Grabbit are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.19] - 2026-08-09
 
 ### Changed
 - Renaming a download now also sets its display title to the chosen name —
